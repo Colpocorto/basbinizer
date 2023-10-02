@@ -192,53 +192,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// int read_data = fread(buffer + LOADER_SIZE, 1, options.infile_s, options);
-	/*if (read_data < (options.infile_s))
-	{
-		fprintf(stdout, "Memory error while reading input file... Exiting\n\n");
-		exitcode = 1;
-
-		return (exitcode);
-	}*/
-
-	// try to open outputs file
-	//	fo_path = argv[2];
-
-	//	fprintf(stdout, "Opening file %s...\t", fo_path);
-	//	fo = fopen(fo_path, "wb");
-	/*
-		if (!fo)
-		{
-			fprintf(stdout, "FAIL\n\n");
-			fprintf(stdout, "Could not open input file. Exiting...\n\n");
-			exitcode = 2;
-
-			return (exitcode);
-		}
-		fprintf(stdout, "OK\n");
-
-		// write data to output file
-		int written = fwrite(buffer, 1, file_size + LOADER_SIZE, fo);
-		if (written < file_size + LOADER_SIZE)
-		{
-			fprintf(stdout, "Memory error while writing output file... Exiting\n\n");
-			exitcode = 1;
-
-			return (exitcode);
-		}
-
-		// close input file
-		fprintf(stdout, "Closing file %s...\t", fi_path);
-		fclose(fi);
-		fprintf(stdout, "OK\n");
-
-		// close output file
-		fprintf(stdout, "Closing file %s...\t", fo_path);
-		fclose(fo);
-		fprintf(stdout, "OK\n");
-		*/
-
-	// free resources
 	free(inbuf);
 
 	return (exitcode);
@@ -280,6 +233,7 @@ bool write_bin(byte *buffer, off_t buf_size, char *binf)
 	}
 
 	fclose(fo);
+	free(cas_buffer);
 
 	return (true);
 }
@@ -1099,6 +1053,7 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 		break;
 	}
 
+	free(mantissa);
 	return pos;
 }
 void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output)
@@ -1154,12 +1109,6 @@ int get_string(byte *buffer, int pos, FILE *output)
 		pos++;
 	}
 
-	/*
-	   if (*(buffer+pos)) {
-	   //the string ended up with a 0x3a (:)
-	   //otherwise the ending is the line's ending so no need to increase pointer
-	   pos++;
-	   } */
 
 	return pos - 1;
 }
