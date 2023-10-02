@@ -16,19 +16,25 @@ basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>]
 
 Where
     <intputfile> is the path to an MSX-BASIC .BAS file in tokenized
+
     <outputfile> is the resulting .CAS file.
+
     <CAS FILENAME> if the name of the BLOAD name (max. 6 characters)
+
     <ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.                                                                       
 
 Options:
 
 --fix       Fixes certain data errors found in the source .BAS file
+
 --quiet     suppress messages on screen (except for critical errors)
 
 Example:
 
     basbinizer GAME.BAS
+
     basbinizer STARS.BAS -b STARS.CAS -c STARS
+    
     basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -C NIBBLE --fix
                                                                               
 Building BASBINIZER
