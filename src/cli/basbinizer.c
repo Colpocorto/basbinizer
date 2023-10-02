@@ -1,3 +1,25 @@
+/******************************************************************************
+Copyright 2023 Jose Angel Morente - MSXWiki.org
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+******************************************************************************/
+
 #include "basbinizer.h"
 
 void title(void)
@@ -55,7 +77,9 @@ bool process_params(int argc, char **argv, options_t *opt)
 
 	if (!stat(argv[1], &st_infile))
 	{
-		// if we are here, the file exists. Good news!
+		/*
+			if we are here, the file exists. Good news!
+		*/
 		opt->infile = argv[1];
 		opt->infile_s = st_infile.st_size;
 	}
@@ -199,13 +223,17 @@ int main(int argc, char **argv)
 bool write_bin(byte *buffer, off_t buf_size, char *binf)
 {
 
-	// Write file size into binary loader data (loader_data is a global array)
+	/*
+		Write file size into binary loader data (loader_data is a global array)
+	*/
 	loader_data[PATCH_POS] = (byte)(buf_size & 0xff);
 	loader_data[PATCH_POS + 1] = (byte)((buf_size & 0xff00) >> 8);
 
 	memcpy(loader_data + PATCH_NAME_POS, options.casname, CAS_NAME_LEN);
 
-	// Get memory for the buffer
+	/*
+		Get memory for the buffer
+	*/
 	byte *cas_buffer = malloc(LOADER_SIZE + buf_size);
 
 	if (!cas_buffer)
@@ -215,11 +243,15 @@ bool write_bin(byte *buffer, off_t buf_size, char *binf)
 		return (false);
 	}
 
-	// copy data and concat .BAS file
+	/*
+		copy data and concat .BAS file
+	*/
 	memcpy(cas_buffer, loader_data, LOADER_SIZE);
 	memcpy(cas_buffer + LOADER_SIZE, buffer, buf_size);
 
-	// finally, open output file and write data
+	/*
+		finally, open output file and write data
+	*/
 	FILE *fo = fopen(binf, "wb");
 	if (!fo)
 	{
@@ -254,7 +286,9 @@ bool process_bas(byte *buffer, off_t file_size)
 	}
 
 	decodeBAS(buffer, file_size, asciifile);
-	// EOF
+	/*
+		EOF
+	*/
 	fprintf(asciifile, "%c", 0x1a);
 
 	fclose(asciifile);
@@ -267,11 +301,16 @@ void decodeBAS(byte *buffer, off_t size, FILE *output)
 
 	int link_pointer;
 
-	int pos = 1; // skip 0xff header
+	/*
+		skip 0xff header
+	*/
+	int pos = 1;
 
 	while ((link_pointer = get_word_value(buffer + pos)) != 0)
 	{
-		// decode line
+		/*
+			decode line
+		*/
 		pos = decodeLine(buffer, pos, size, output);
 
 		fprintf(output, "\r\n");
@@ -282,13 +321,17 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 {
 	byte token;
 
-	// get the link pointer
+	/*
+		get the link pointer
+	*/
 	uint16_t link_ptr = get_word_value(buffer + pos);
 	int initial_pos_at_line = pos;
 
 	pos += 2;
 
-	// spit out line number
+	/*
+		spit out line number
+	*/
 	uint16_t current_line_number = get_word_value(buffer + pos);
 	fprintf(output, "%d ", current_line_number);
 
@@ -296,23 +339,40 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 
 	while ((token = *(buffer + pos)) != 0)
 	{
-		// process token
+		/*
+			process token
+		*/
 		switch (token)
 		{
-		case 0x0b: // get octal value
+		/*
+			get octal value
+		*/
+		case 0x0b:
 			pos = get_octal(buffer, pos, output);
 			break;
-		case 0x0c: // get hex value
+		/*
+			get hex value
+		*/
+		case 0x0c:
 			pos = get_hex(buffer, pos, output);
 			break;
-		case 0x0e: // get line number
+		/*
+			get line number
+		*/
+		case 0x0e:
 			pos = get_line_number(buffer, pos, output);
 			break;
-		case 0x0f: // numbers from 10 to 255
+		/*
+			numbers from 10 to 255
+		*/
+		case 0x0f:
 			pos++;
 			fprintf(output, "%d", *(buffer + pos));
 			break;
-		case 0x11: // numbers from 0 to 9 are encoded without token (-0x11)
+		/*
+			numbers from 0 to 9 are encoded without token (-0x11)
+		*/
+		case 0x11:
 		case 0x12:
 		case 0x13:
 		case 0x14:
@@ -324,23 +384,38 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 		case 0x1a:
 			fprintf(output, "%d", *(buffer + pos) - 0x11);
 			break;
-		case 0x1c: // numbers from 256-32767
+		/*
+			numbers from 256-32767
+		*/
+		case 0x1c:
 			fprintf(output, "%d", get_word_value(buffer + pos + 1));
 			pos += 2;
 			break;
-		case 0x1d: // single float
+		/*
+			single float
+		*/
+		case 0x1d:
 			pos = get_single(buffer, pos, output);
 			break;
-		case 0x1f: // double float
+		/*
+			double float
+		*/
+		case 0x1f: 
 			pos = get_double(buffer, pos, output);
 			break;
-		case 0x22: // string literal
+		/*
+			string literal
+		*/
+		case 0x22:
 			pos = get_quoted_string(buffer, pos, output);
 			break;
 		case 0x26:
 			pos = get_bin(buffer, pos, output);
 			break;
-		case 0x27: // '
+		/*
+			'
+		*/
+		case 0x27:
 			fprintf(output, "'");
 			pos = get_terminal_string(buffer, pos + 1, output);
 			break;
@@ -359,7 +434,9 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 		case 0x84:
 			fprintf(output, "DATA");
 			pos++;
-			// get unquoted string
+			/*
+				get unquoted string
+			*/
 			pos = get_string(buffer, pos, output);
 			break;
 		case 0x85:
@@ -724,7 +801,9 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 			fprintf(output, "\\");
 			break;
 		case 0xff:
-			// extended code
+			/*
+				extended code
+			*/
 			pos++;
 			switch (*(buffer + pos))
 			{
@@ -882,7 +961,10 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 		}
 		pos++;
 	}
-	pos++; // end of line
+	/*
+		end of line
+	*/
+	pos++; 
 
 	if (link_ptr != (0x8000 + (uint16_t)pos))
 	{
@@ -916,16 +998,6 @@ uint16_t get_word_value(byte *pointer)
 	return (byte)(*pointer) + ((byte) * (pointer + 1)) * 256;
 }
 
-/* int get_file_size(FILE *fi)
-{
-	fseek(fi, 0L, SEEK_END);
-	int file_size = ftell(fi);
-	rewind(fi);
-
-	return (file_size);
-}
-*/
-
 int get_quoted_string(byte *buffer, int pos, FILE *output)
 {
 	fprintf(output, "\"");
@@ -937,7 +1009,10 @@ int get_quoted_string(byte *buffer, int pos, FILE *output)
 	}
 	if (*(buffer + pos) == 0)
 	{
-		pos--; // if terminating quote does not exist
+		/*
+			if terminating quote does not exist
+		*/
+		pos--; 
 	}
 	else
 	{
@@ -964,34 +1039,47 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 
 	switch (*(buffer + pos))
 	{
-		// trivial case: if first byte=0 the whole value=0
+		/*
+			trivial case: if first byte=0 the whole value=0
+		*/
 
 	case 0:
 		fprintf(output, "0%c", qualifier);
 		pos += is_double ? 7 : 3;
 		break;
-
-	// process the float number
+		/*
+			process the float number
+		*/
 	default:
 
 		mantissa = malloc((is_double) ? 15 : 7);
-		byte exponent = *(buffer + pos) & 0x7f; // takes absolute value, first bit is sign
+		/*
+			takes absolute value, first bit is sign
+		*/
+		byte exponent = *(buffer + pos) & 0x7f; 
 
-		pos++; // pos now points to the beginning of the mantissa
+		/*
+			pos now points to the beginning of the mantissa
+		*/
+		pos++; 
 		int8_t length = read_mantissa(buffer + pos, mantissa, mantissa_length);
 
-		// get decimal place
+		/*
+			get decimal place
 
-		// 4 possible cases:
+			4 possible cases:
 
-		// a) actual mantissa length <= max mantissa length
-		// b) decimal place is > 0x40 and total length > max mantissa length -> E+xx
-		// c) decimal place is < 0x40 (first char) and total length <= max mantissa
-		// d) decimal place is < 0x40 (first char) and total length > max mantissa -> E-xx
+			a) actual mantissa length <= max mantissa length
+			b) decimal place is > 0x40 and total length > max mantissa length -> E+xx
+			c) decimal place is < 0x40 (first char) and total length <= max mantissa
+			d) decimal place is < 0x40 (first char) and total length > max mantissa -> E-xx
 
-		// b  1.11111E+14
+			b  1.11111E+14
+		*/
 		if (exponent == 0x40)
-		// case: exp 0x40
+		/*
+			case: exp 0x40
+		*/
 		{
 			print_mantissa(mantissa, length, 0, output);
 		}
@@ -1011,8 +1099,11 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 					print_mantissa(mantissa, length, exponent - 0x40, output);
 					if ((exponent - 0x40) > length)
 					{
-						// fill with zeroes
-						for (int i = 0; i < (exponent - 0x40) - length; i++)
+						/*
+							fill with zeroes
+						*/
+						int i=0;
+						for (i; i < (exponent - 0x40) - length; i++)
 						{
 							fprintf(output, "0");
 						}
@@ -1026,14 +1117,18 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 
 				if (exponent < 0x40)
 				{
-					// c
+					/*
+						c
+					*/
 					if (exponent > (0x40 - mantissa_length))
 					{
 						print_mantissa(mantissa, length, exponent - 0x40, output);
-						// fprintf(output, "%c", qualifier);
+						
 					}
 					else
-					// d
+					/*
+						d
+					*/
 					{
 						print_mantissa(mantissa, length, 1, output);
 						fprintf(output, "E%d", exponent - 0x40 - 1);
@@ -1041,14 +1136,14 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 				}
 			}
 		}
-		// add zeroes if integer ending with zero (exponent will be greater than mantissa length)
-		// add qualifier if integer
-
+		/*
+			add zeroes if integer ending with zero (exponent will be greater than mantissa length)
+			add qualifier if integer
+		*/
 		if (((exponent - 0x40) >= (length)) && (exponent - 0x40 <= mantissa_length))
 		{
 			fprintf(output, "%c", qualifier);
 		}
-
 		pos += is_double ? 6 : 2;
 		free(mantissa);
 		break;
@@ -1065,12 +1160,16 @@ void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output)
 	else
 	{
 
-		// dot_pos = dot_pos - 0x40;
+		/*
+			dot_pos = dot_pos - 0x40;
+		*/
 		if (dot_pos < 0)
 		{
 			fprintf(output, ".");
 		}
-		for (int i = (dot_pos < 0) ? dot_pos : 0; i < length; i++)
+
+		int i = (dot_pos < 0);
+		for (i ? dot_pos : 0; i < length; i++)
 		{
 			if (i < 0)
 			{
@@ -1091,25 +1190,34 @@ void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output)
 int8_t read_mantissa(byte *buffer, char *mantissa, int8_t length)
 {
 	int8_t mantissa_length = 0;
-	// set end of string
+	/*
+		set end of string
+	*/
 	*(mantissa + length) = 0;
 
-	for (int8_t i = length - 1; i >= 0; i--)
+	int8_t i = length - 1;
+	for (i ; i >= 0; i--)
 	{
 		byte n = (i % 2) ? (*(buffer + (i / 2)) & 0x0f) : (*(buffer + (i / 2)) & 0xf0) >> 4;
 		*(mantissa + i) = n | 0x30;
-
-		if (n && mantissa_length == 0) // found the first non-zero
+		/*
+			found the first non-zero
+		*/
+		if (n && mantissa_length == 0) 
 		{
 			mantissa_length = i + 1;
 		}
 	}
 
-	// returns actual length
+	/*
+		returns actual length
+	*/
 	return mantissa_length;
 }
 
-// used by DATA and others
+/*
+	used by DATA and others
+*/
 int get_string(byte *buffer, int pos, FILE *output)
 {
 	while (*(buffer + pos) != 0 && *(buffer + pos) != ':')
@@ -1121,16 +1229,23 @@ int get_string(byte *buffer, int pos, FILE *output)
 	return pos - 1;
 }
 
-// used for REM
+/*
+	used for REM
+*/
 int get_terminal_string(byte *buffer, int pos, FILE *output)
 {
-	while (*(buffer + pos)) // the only condition to end string is \0
+	/*
+		the only condition to end string is \0
+	*/
+	while (*(buffer + pos)) 
 	{
 		fprintf(output, "%c", *(buffer + pos));
 		pos++;
 	}
-
-	return pos - 1; // next token should point \0 (EOL)
+	/*
+		next token should point \0 (EOL)
+	*/
+	return pos - 1; 
 }
 
 int get_colon(byte *buffer, int pos, FILE *output)
