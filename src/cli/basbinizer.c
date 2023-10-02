@@ -2,16 +2,25 @@
 
 void title(void)
 {
-	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v0.1 _/_/_/_/_/_/_/_/\n");
+	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.0 _/_/_/_/_/_/_/_/\n");
 	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/ 2023 MSXWiki.org _/_/_/_/_/_/_/_/\n\n\n");
 }
 void usage(void)
 {
 	fprintf(options.stdoutf, "Syntax:\n\n");
 	fprintf(options.stdoutf, "basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [--fix] [--quiet]\n\n");
-	fprintf(options.stdoutf, "Where\n\t<intputfile> is the path to a MSX-BASIC .BAS file in tokenized format\n\t<outputfile> is the resulting .CAS file.\n\t<CAS FILENAME> if the name of the BLOAD name (max. 6 characters)\n\t<ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written on the standard output.\n");
-	fprintf(options.stdoutf, "Example:\tbasbinizer STARS.BAS STARS.CAS STARS\n\n\n");
+	fprintf(options.stdoutf, "Where\n");
+	fprintf(options.stdoutf, "\t<intputfile> is the path to an MSX-BASIC .BAS file in tokenized format\n");
+	fprintf(options.stdoutf, "\t<outputfile> is the resulting .CAS file.\n");
+	fprintf(options.stdoutf, "\t<CAS FILENAME> if the name of the BLOAD name (max. 6 characters)\n");
+	fprintf(options.stdoutf, "\t<ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.\n\n");
+	fprintf(options.stdoutf, "Options:\n");
+	fprintf(options.stdoutf, "\t--fix\t\tFixes certain data errors found in the source .BAS file\n");
+	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors\n\n");	
+
+	fprintf(options.stdoutf, "Example:\n\tbasbinizer STARS.BAS -b STARS.CAS -c STARS\n\n\n");
 }
+
 bool process_params(int argc, char **argv, options_t *opt)
 {
 	/*
@@ -65,16 +74,7 @@ bool process_params(int argc, char **argv, options_t *opt)
 	{
 		if ((!strcmp(argv[i], "-b")) && (i < (argc - 1)))
 		{
-			st_stat st_outfile;
-			if (!stat(argv[++i], &st_outfile))
-			{
-				opt->outfile = argv[i];
-			}
-			else
-			{
-				strcpy(opt->valerror, "Invalid output file.\n");
-				return (false);
-			}
+			opt->outfile = argv[++i];
 		}
 		else
 		{
@@ -104,16 +104,7 @@ bool process_params(int argc, char **argv, options_t *opt)
 					{
 						if ((!strcmp(argv[i], "-a")) && (i < (argc - 1)))
 						{
-							st_stat st_ascfile;
-							if (!stat(argv[++i], &st_ascfile))
-							{
-								opt->ascfile = argv[i];
-							}
-							else
-							{
-								strcpy(opt->valerror, "Invalid ASC output file.\n");
-								return (false);
-							}
+							opt->ascfile = argv[++i];
 						}
 					}
 				}
@@ -128,7 +119,7 @@ byte *get_input_file(char *infile)
 
 	static byte *buffer = NULL;
 
-	if (buffer = malloc(options.infile_s))
+	if ((buffer = malloc(options.infile_s)) != NULL)
 	{
 		FILE *f = NULL;
 		fprintf(options.stdoutf, "Opening input file %s...", options.infile);
@@ -188,40 +179,19 @@ int main(int argc, char **argv)
 		-Convert to ASCII (stdout or file)
 		-Fix links if required
 	*/
-	if (!process_bas(inbuf, options.infile_s)) {
+	if (!process_bas(inbuf, options.infile_s))
+	{
 		return (1);
 	}
-	
-
-	return (0); // TEST
 
 	if (options.outfile)
 	{
-		FILE *fo = NULL;
+		if (!write_bin(inbuf, options.infile_s, options.outfile))
+		{
+			return (1);
+		}
 	}
 
-	// Write file size into binary loader data
-	loader_data[PATCH_POS] = (unsigned char)(options.infile_s & 0xff);
-	loader_data[PATCH_POS + 1] = (unsigned char)((options.infile_s & 0xff00) >> 8);
-
-	int name_len = strlen(argv[3]);
-
-	memset(loader_data + PATCH_NAME_POS, ' ', CAS_NAME_LEN);
-	memcpy(loader_data + PATCH_NAME_POS, argv[3], name_len > CAS_NAME_LEN ? CAS_NAME_LEN : name_len);
-
-	// Get memory for the buffer
-	unsigned char *buffer = malloc(LOADER_SIZE + options.infile_s);
-
-	if (!buffer)
-	{
-		fprintf(stdout, "Memory error trying to find %d bytes free... exiting.\n\n", LOADER_SIZE + options.infile_s);
-		exitcode = 1;
-
-		return (exitcode);
-	}
-
-	// copy data and concat .BAS file
-	memcpy(buffer, loader_data, LOADER_SIZE);
 	// int read_data = fread(buffer + LOADER_SIZE, 1, options.infile_s, options);
 	/*if (read_data < (options.infile_s))
 	{
@@ -269,12 +239,51 @@ int main(int argc, char **argv)
 		*/
 
 	// free resources
-	free(buffer);
+	free(inbuf);
 
 	return (exitcode);
 }
+bool write_bin(byte *buffer, off_t buf_size, char *binf)
+{
 
-bool process_bas(byte *buffer, int file_size)
+	// Write file size into binary loader data (loader_data is a global array)
+	loader_data[PATCH_POS] = (byte)(buf_size & 0xff);
+	loader_data[PATCH_POS + 1] = (byte)((buf_size & 0xff00) >> 8);
+
+	memcpy(loader_data + PATCH_NAME_POS, options.casname, CAS_NAME_LEN);
+
+	// Get memory for the buffer
+	byte *cas_buffer = malloc(LOADER_SIZE + buf_size);
+
+	if (!cas_buffer)
+	{
+		fprintf(stderr, "Memory error trying to find %lld bytes free while writing CAS file... exiting.\n\n", LOADER_SIZE + buf_size);
+
+		return (false);
+	}
+
+	// copy data and concat .BAS file
+	memcpy(cas_buffer, loader_data, LOADER_SIZE);
+	memcpy(cas_buffer + LOADER_SIZE, buffer, buf_size);
+
+	// finally, open output file and write data
+	FILE *fo = fopen(binf, "wb");
+	if (!fo)
+	{
+		fprintf(stderr, "Error opening .CAS file %s.\n", binf);
+		return (false);
+	}
+
+	if (fwrite(cas_buffer, 1, LOADER_SIZE + buf_size, fo) != (LOADER_SIZE + buf_size))
+	{
+		fprintf(stderr, "Error writing .CAS file %s.\n", binf);
+	}
+
+	fclose(fo);
+
+	return (true);
+}
+bool process_bas(byte *buffer, off_t file_size)
 {
 	/*
 		Create the ASCII file or assign it to stdout
@@ -283,24 +292,23 @@ bool process_bas(byte *buffer, int file_size)
 
 	if (options.ascfile)
 	{
-		if (!(asciifile = fopen(options.ascfile, "w")))
+		if (!(asciifile = fopen(options.ascfile, "wb")))
 		{
 			fprintf(stderr, "Error creating output ASCII file.\n");
-			return(false);
+			return (false);
 		}
 	}
 
 	decodeBAS(buffer, file_size, asciifile);
+	// EOF
+	fprintf(asciifile, "%c", 0x1a);
+
+	fclose(asciifile);
 
 	return (true);
 }
 
-void check_links(char *buf)
-{
-	bool broken = false;
-}
-
-void decodeBAS(byte *buffer, int size, FILE *output)
+void decodeBAS(byte *buffer, off_t size, FILE *output)
 {
 
 	int link_pointer;
@@ -311,18 +319,24 @@ void decodeBAS(byte *buffer, int size, FILE *output)
 	{
 		// decode line
 		pos = decodeLine(buffer, pos, size, output);
-		fprintf(output, "\n");
+
+		fprintf(output, "\r\n");
 	}
 }
 
-int decodeLine(byte *buffer, int pos, int size, FILE *asciifile)
+int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 {
 	byte token;
 
-	// skip link pointer
+	// get the link pointer
+	uint16_t link_ptr = get_word_value(buffer + pos);
+	int initial_pos_at_line = pos;
+
 	pos += 2;
 
-	fprintf(asciifile, "%d ", get_word_value(buffer + pos));
+	// spit out line number
+	uint16_t current_line_number = get_word_value(buffer + pos);
+	fprintf(output, "%d ", current_line_number);
 
 	pos += 2;
 
@@ -332,17 +346,17 @@ int decodeLine(byte *buffer, int pos, int size, FILE *asciifile)
 		switch (token)
 		{
 		case 0x0b: // get octal value
-			pos = get_octal(buffer, pos, asciifile);
+			pos = get_octal(buffer, pos, output);
 			break;
 		case 0x0c: // get hex value
-			pos = get_hex(buffer, pos, asciifile);
+			pos = get_hex(buffer, pos, output);
 			break;
 		case 0x0e: // get line number
-			pos = get_line_number(buffer, pos, asciifile);
+			pos = get_line_number(buffer, pos, output);
 			break;
 		case 0x0f: // numbers from 10 to 255
 			pos++;
-			fprintf(asciifile, "%d", *(buffer + pos));
+			fprintf(output, "%d", *(buffer + pos));
 			break;
 		case 0x11: // numbers from 0 to 9 are encoded without token (-0x11)
 		case 0x12:
@@ -354,402 +368,406 @@ int decodeLine(byte *buffer, int pos, int size, FILE *asciifile)
 		case 0x18:
 		case 0x19:
 		case 0x1a:
-			fprintf(asciifile, "%d", *(buffer + pos) - 0x11);
+			fprintf(output, "%d", *(buffer + pos) - 0x11);
 			break;
 		case 0x1c: // numbers from 256-32767
-			fprintf(asciifile, "%d", get_word_value(buffer + pos + 1));
+			fprintf(output, "%d", get_word_value(buffer + pos + 1));
 			pos += 2;
 			break;
 		case 0x1d: // single float
-			pos = get_single(buffer, pos, asciifile);
+			pos = get_single(buffer, pos, output);
 			break;
 		case 0x1f: // double float
-			pos = get_double(buffer, pos, asciifile);
+			pos = get_double(buffer, pos, output);
 			break;
 		case 0x22: // string literal
-			pos = get_quoted_string(buffer, pos, asciifile);
+			pos = get_quoted_string(buffer, pos, output);
 			break;
 		case 0x26:
-			pos = get_bin(buffer, pos, asciifile);
+			pos = get_bin(buffer, pos, output);
 			break;
 		case 0x27: // '
-			pos = get_terminal_string(buffer, pos + 1, asciifile);
+			fprintf(output, "'");
+			pos = get_terminal_string(buffer, pos + 1, output);
 			break;
 		case 0x3a:
-			pos = get_colon(buffer, pos, asciifile);
+			pos = get_colon(buffer, pos, output);
 			break;
 		case 0x81:
-			fprintf(asciifile, "END");
+			fprintf(output, "END");
 			break;
 		case 0x82:
-			fprintf(asciifile, "FOR");
+			fprintf(output, "FOR");
 			break;
 		case 0x83:
-			fprintf(asciifile, "NEXT");
+			fprintf(output, "NEXT");
 			break;
 		case 0x84:
-			fprintf(asciifile, "DATA");
+			fprintf(output, "DATA");
 			pos++;
 			// get unquoted string
-			pos = get_string(buffer, pos, asciifile);
+			pos = get_string(buffer, pos, output);
 			break;
 		case 0x85:
-			fprintf(asciifile, "INPUT");
+			fprintf(output, "INPUT");
 			break;
 		case 0x86:
-			fprintf(asciifile, "DIM");
+			fprintf(output, "DIM");
 			break;
 		case 0x87:
-			fprintf(asciifile, "READ");
+			fprintf(output, "READ");
 			break;
 		case 0x88:
-			fprintf(asciifile, "LET");
+			fprintf(output, "LET");
 			break;
 		case 0x89:
-			fprintf(asciifile, "GOTO");
+			fprintf(output, "GOTO");
 			break;
 		case 0x8a:
-			fprintf(asciifile, "RUN");
+			fprintf(output, "RUN");
 			break;
 		case 0x8b:
-			fprintf(asciifile, "IF");
+			fprintf(output, "IF");
 			break;
 		case 0x8c:
-			fprintf(asciifile, "RESTORE");
+			fprintf(output, "RESTORE");
 			break;
 		case 0x8d:
-			fprintf(asciifile, "GOSUB");
+			fprintf(output, "GOSUB");
 			break;
 		case 0x8e:
-			fprintf(asciifile, "RETURN");
+			fprintf(output, "RETURN");
 			break;
 		case 0x8f:
-			fprintf(asciifile, "REM");
-			pos = get_terminal_string(buffer, pos + 1, asciifile);
+			fprintf(output, "REM");
+			pos = get_terminal_string(buffer, pos + 1, output);
 			break;
 		case 0x90:
-			fprintf(asciifile, "STOP");
+			fprintf(output, "STOP");
 			break;
 		case 0x91:
-			fprintf(asciifile, "PRINT");
+			fprintf(output, "PRINT");
 			break;
 		case 0x92:
-			fprintf(asciifile, "CLEAR");
+			fprintf(output, "CLEAR");
 			break;
 		case 0x93:
-			fprintf(asciifile, "LIST");
+			fprintf(output, "LIST");
 			break;
 		case 0x94:
-			fprintf(asciifile, "NEW");
+			fprintf(output, "NEW");
 			break;
 		case 0x95:
-			fprintf(asciifile, "ON");
+			fprintf(output, "ON");
 			break;
 		case 0x96:
-			fprintf(asciifile, "WAIT");
+			fprintf(output, "WAIT");
 			break;
 		case 0x97:
-			fprintf(asciifile, "DEF");
+			fprintf(output, "DEF");
 			break;
 		case 0x98:
-			fprintf(asciifile, "POKE");
+			fprintf(output, "POKE");
 			break;
 		case 0x99:
-			fprintf(asciifile, "CONT");
+			fprintf(output, "CONT");
 			break;
 		case 0x9a:
-			fprintf(asciifile, "CSAVE");
+			fprintf(output, "CSAVE");
 			break;
 		case 0x9b:
-			fprintf(asciifile, "CLOAD");
+			fprintf(output, "CLOAD");
 			break;
 		case 0x9c:
-			fprintf(asciifile, "OUT");
+			fprintf(output, "OUT");
 			break;
 		case 0x9d:
-			fprintf(asciifile, "LPRINT");
+			fprintf(output, "LPRINT");
 			break;
 		case 0x9e:
-			fprintf(asciifile, "LLIST");
+			fprintf(output, "LLIST");
 			break;
 		case 0x9f:
-			fprintf(asciifile, "CLS");
+			fprintf(output, "CLS");
 			break;
 		case 0xa0:
-			fprintf(asciifile, "WIDTH");
+			fprintf(output, "WIDTH");
 			break;
 		case 0xa1:
-			fprintf(asciifile, "ELSE");
+			fprintf(output, "ELSE");
 			break;
 		case 0xa2:
-			fprintf(asciifile, "TRON");
+			fprintf(output, "TRON");
 			break;
 		case 0xa3:
-			fprintf(asciifile, "TROFF");
+			fprintf(output, "TROFF");
 			break;
 		case 0xa4:
-			fprintf(asciifile, "SWAP");
+			fprintf(output, "SWAP");
 			break;
 		case 0xa5:
-			fprintf(asciifile, "ERASE");
+			fprintf(output, "ERASE");
 			break;
 		case 0xa6:
-			fprintf(asciifile, "ERROR");
+			fprintf(output, "ERROR");
 			break;
 		case 0xa7:
-			fprintf(asciifile, "RESUME");
+			fprintf(output, "RESUME");
 			break;
 		case 0xa8:
-			fprintf(asciifile, "DELETE");
+			fprintf(output, "DELETE");
 			break;
 		case 0xa9:
-			fprintf(asciifile, "AUTO");
+			fprintf(output, "AUTO");
 			break;
 		case 0xaa:
-			fprintf(asciifile, "RENUM");
+			fprintf(output, "RENUM");
 			break;
 		case 0xab:
-			fprintf(asciifile, "DEFSTR");
+			fprintf(output, "DEFSTR");
 			break;
 		case 0xac:
-			fprintf(asciifile, "DEFINT");
+			fprintf(output, "DEFINT");
 			break;
 		case 0xad:
-			fprintf(asciifile, "DEFSNG");
+			fprintf(output, "DEFSNG");
 			break;
 		case 0xae:
-			fprintf(asciifile, "DEFDBL");
+			fprintf(output, "DEFDBL");
 			break;
 		case 0xaf:
-			fprintf(asciifile, "LINE");
+			fprintf(output, "LINE");
 			break;
 		case 0xb0:
-			fprintf(asciifile, "OPEN");
+			fprintf(output, "OPEN");
 			break;
 		case 0xb1:
-			fprintf(asciifile, "FIELD");
+			fprintf(output, "FIELD");
 			break;
 		case 0xb2:
-			fprintf(asciifile, "GET");
+			fprintf(output, "GET");
 			break;
 		case 0xb3:
-			fprintf(asciifile, "PUT");
+			fprintf(output, "PUT");
 			break;
 		case 0xb4:
-			fprintf(asciifile, "CLOSE");
+			fprintf(output, "CLOSE");
 			break;
 		case 0xb5:
-			fprintf(asciifile, "LOAD");
+			fprintf(output, "LOAD");
 			break;
 		case 0xb6:
-			fprintf(asciifile, "MERGE");
+			fprintf(output, "MERGE");
 			break;
 		case 0xb7:
-			fprintf(asciifile, "FILES");
+			fprintf(output, "FILES");
 			break;
 		case 0xb8:
-			fprintf(asciifile, "LSET");
+			fprintf(output, "LSET");
 			break;
 		case 0xb9:
-			fprintf(asciifile, "RSET");
+			fprintf(output, "RSET");
 			break;
 		case 0xba:
-			fprintf(asciifile, "SAVE");
+			fprintf(output, "SAVE");
 			break;
 		case 0xbb:
-			fprintf(asciifile, "LFILES");
+			fprintf(output, "LFILES");
 			break;
 		case 0xbc:
-			fprintf(asciifile, "CIRCLE");
+			fprintf(output, "CIRCLE");
 			break;
 		case 0xbd:
-			fprintf(asciifile, "COLOR");
+			fprintf(output, "COLOR");
 			break;
 		case 0xbe:
-			fprintf(asciifile, "DRAW");
+			fprintf(output, "DRAW");
 			break;
 		case 0xbf:
-			fprintf(asciifile, "PAINT");
+			fprintf(output, "PAINT");
 			break;
 		case 0xc0:
-			fprintf(asciifile, "BEEP");
+			fprintf(output, "BEEP");
 			break;
 		case 0xc1:
-			fprintf(asciifile, "PLAY");
+			fprintf(output, "PLAY");
 			break;
 		case 0xc2:
-			fprintf(asciifile, "PSET");
+			fprintf(output, "PSET");
 			break;
 		case 0xc3:
-			fprintf(asciifile, "PRESET");
+			fprintf(output, "PRESET");
 			break;
 		case 0xc4:
-			fprintf(asciifile, "SOUND");
+			fprintf(output, "SOUND");
 			break;
 		case 0xc5:
-			fprintf(asciifile, "SCREEN");
+			fprintf(output, "SCREEN");
 			break;
 		case 0xc6:
-			fprintf(asciifile, "VPOKE");
+			fprintf(output, "VPOKE");
 			break;
 		case 0xc7:
-			fprintf(asciifile, "SPRITE");
+			fprintf(output, "SPRITE");
 			break;
 		case 0xc8:
-			fprintf(asciifile, "VDP");
+			fprintf(output, "VDP");
 			break;
 		case 0xc9:
-			fprintf(asciifile, "BASE");
+			fprintf(output, "BASE");
 			break;
 		case 0xca:
-			fprintf(asciifile, "CALL");
+			fprintf(output, "CALL");
 			break;
 		case 0xcb:
-			fprintf(asciifile, "TIME");
+			fprintf(output, "TIME");
 			break;
 		case 0xcc:
-			fprintf(asciifile, "KEY");
+			fprintf(output, "KEY");
 			break;
 		case 0xcd:
-			fprintf(asciifile, "MAX");
+			fprintf(output, "MAX");
 			break;
 		case 0xce:
-			fprintf(asciifile, "MOTOR");
+			fprintf(output, "MOTOR");
 			break;
 		case 0xcf:
-			fprintf(asciifile, "BLOAD");
+			fprintf(output, "BLOAD");
 			break;
 		case 0xd0:
-			fprintf(asciifile, "BSAVE");
+			fprintf(output, "BSAVE");
 			break;
 		case 0xd1:
-			fprintf(asciifile, "DSKO$");
+			fprintf(output, "DSKO$");
 			break;
 		case 0xd2:
-			fprintf(asciifile, "SET");
+			fprintf(output, "SET");
 			break;
 		case 0xd3:
-			fprintf(asciifile, "NAME");
+			fprintf(output, "NAME");
 			break;
 		case 0xd4:
-			fprintf(asciifile, "KILL");
+			fprintf(output, "KILL");
 			break;
 		case 0xd5:
-			fprintf(asciifile, "IPL");
+			fprintf(output, "IPL");
 			break;
 		case 0xd6:
-			fprintf(asciifile, "COPY");
+			fprintf(output, "COPY");
 			break;
 		case 0xd7:
-			fprintf(asciifile, "CMD");
+			fprintf(output, "CMD");
 			break;
 		case 0xd8:
-			fprintf(asciifile, "LOCATE");
+			fprintf(output, "LOCATE");
 			break;
 		case 0xd9:
-			fprintf(asciifile, "TO");
+			fprintf(output, "TO");
 			break;
 		case 0xda:
-			fprintf(asciifile, "THEN");
+			fprintf(output, "THEN");
 			break;
 		case 0xdb:
-			fprintf(asciifile, "TAB(");
+			fprintf(output, "TAB(");
 			break;
 		case 0xdc:
-			fprintf(asciifile, "STEP");
+			fprintf(output, "STEP");
 			break;
 		case 0xdd:
-			fprintf(asciifile, "USR");
+			fprintf(output, "USR");
 			break;
 		case 0xde:
-			fprintf(asciifile, "FN");
+			fprintf(output, "FN");
 			break;
 		case 0xdf:
-			fprintf(asciifile, "SPC(");
+			fprintf(output, "SPC(");
 			break;
 		case 0xe0:
-			fprintf(asciifile, "NOT");
+			fprintf(output, "NOT");
 			break;
 		case 0xe1:
-			fprintf(asciifile, "ERL");
+			fprintf(output, "ERL");
 			break;
 		case 0xe2:
-			fprintf(asciifile, "ERR");
+			fprintf(output, "ERR");
 			break;
 		case 0xe3:
-			fprintf(asciifile, "STRING$");
+			fprintf(output, "STRING$");
 			break;
 		case 0xe4:
-			fprintf(asciifile, "USING");
+			fprintf(output, "USING");
 			break;
 		case 0xe5:
-			fprintf(asciifile, "INSTR");
+			fprintf(output, "INSTR");
+			break;
+		case 0xe6:
+			fprintf(output, "'");
 			break;
 		case 0xe7:
-			fprintf(asciifile, "VARPTR");
+			fprintf(output, "VARPTR");
 			break;
 		case 0xe8:
-			fprintf(asciifile, "CSRLIN");
+			fprintf(output, "CSRLIN");
 			break;
 		case 0xe9:
-			fprintf(asciifile, "ATTR$");
+			fprintf(output, "ATTR$");
 			break;
 		case 0xea:
-			fprintf(asciifile, "DSKI$");
+			fprintf(output, "DSKI$");
 			break;
 		case 0xeb:
-			fprintf(asciifile, "OFF");
+			fprintf(output, "OFF");
 			break;
 		case 0xec:
-			fprintf(asciifile, "INKEY$");
+			fprintf(output, "INKEY$");
 			break;
 		case 0xed:
-			fprintf(asciifile, "POINT");
+			fprintf(output, "POINT");
 			break;
 		case 0xee:
-			fprintf(asciifile, ">");
+			fprintf(output, ">");
 			break;
 		case 0xef:
-			fprintf(asciifile, "=");
+			fprintf(output, "=");
 			break;
 		case 0xf0:
-			fprintf(asciifile, "<");
+			fprintf(output, "<");
 			break;
 		case 0xf1:
-			fprintf(asciifile, "+");
+			fprintf(output, "+");
 			break;
 		case 0xf2:
-			fprintf(asciifile, "-");
+			fprintf(output, "-");
 			break;
 		case 0xf3:
-			fprintf(asciifile, "*");
+			fprintf(output, "*");
 			break;
 		case 0xf4:
-			fprintf(asciifile, "/");
+			fprintf(output, "/");
 			break;
 		case 0xf5:
-			fprintf(asciifile, "^");
+			fprintf(output, "^");
 			break;
 		case 0xf6:
-			fprintf(asciifile, "AND");
+			fprintf(output, "AND");
 			break;
 		case 0xf7:
-			fprintf(asciifile, "OR");
+			fprintf(output, "OR");
 			break;
 		case 0xf8:
-			fprintf(asciifile, "XOR");
+			fprintf(output, "XOR");
 			break;
 		case 0xf9:
-			fprintf(asciifile, "EQV");
+			fprintf(output, "EQV");
 			break;
 		case 0xfa:
-			fprintf(asciifile, "IMP");
+			fprintf(output, "IMP");
 			break;
 		case 0xfb:
-			fprintf(asciifile, "MOD");
+			fprintf(output, "MOD");
 			break;
 		case 0xfc:
-			fprintf(asciifile, "\\");
+			fprintf(output, "\\");
 			break;
 		case 0xff:
 			// extended code
@@ -757,159 +775,176 @@ int decodeLine(byte *buffer, int pos, int size, FILE *asciifile)
 			switch (*(buffer + pos))
 			{
 			case 0x81:
-				fprintf(asciifile, "LEFT$");
+				fprintf(output, "LEFT$");
 				break;
 			case 0x82:
-				fprintf(asciifile, "RIGHT$");
+				fprintf(output, "RIGHT$");
 				break;
 			case 0x83:
-				fprintf(asciifile, "MID$");
+				fprintf(output, "MID$");
 				break;
 			case 0x84:
-				fprintf(asciifile, "SGN");
+				fprintf(output, "SGN");
 				break;
 			case 0x85:
-				fprintf(asciifile, "INT");
+				fprintf(output, "INT");
 				break;
 			case 0x86:
-				fprintf(asciifile, "ABS");
+				fprintf(output, "ABS");
 				break;
 			case 0x87:
-				fprintf(asciifile, "SQR");
+				fprintf(output, "SQR");
 				break;
 			case 0x88:
-				fprintf(asciifile, "RND");
+				fprintf(output, "RND");
 				break;
 			case 0x89:
-				fprintf(asciifile, "SIN");
+				fprintf(output, "SIN");
 				break;
 			case 0x8a:
-				fprintf(asciifile, "LOG");
+				fprintf(output, "LOG");
 				break;
 			case 0x8b:
-				fprintf(asciifile, "EXP");
+				fprintf(output, "EXP");
 				break;
 			case 0x8c:
-				fprintf(asciifile, "COS");
+				fprintf(output, "COS");
 				break;
 			case 0x8d:
-				fprintf(asciifile, "TAN");
+				fprintf(output, "TAN");
 				break;
 			case 0x8e:
-				fprintf(asciifile, "ATN");
+				fprintf(output, "ATN");
 				break;
 			case 0x8f:
-				fprintf(asciifile, "FRE");
+				fprintf(output, "FRE");
 				break;
 			case 0x90:
-				fprintf(asciifile, "INP");
+				fprintf(output, "INP");
 				break;
 			case 0x91:
-				fprintf(asciifile, "POS");
+				fprintf(output, "POS");
 				break;
 			case 0x92:
-				fprintf(asciifile, "LEN");
+				fprintf(output, "LEN");
 				break;
 			case 0x93:
-				fprintf(asciifile, "STR$");
+				fprintf(output, "STR$");
 				break;
 			case 0x94:
-				fprintf(asciifile, "VAL");
+				fprintf(output, "VAL");
 				break;
 			case 0x95:
-				fprintf(asciifile, "ASC");
+				fprintf(output, "ASC");
 				break;
 			case 0x96:
-				fprintf(asciifile, "CHR$");
+				fprintf(output, "CHR$");
 				break;
 			case 0x97:
-				fprintf(asciifile, "PEEK");
+				fprintf(output, "PEEK");
 				break;
 			case 0x98:
-				fprintf(asciifile, "VPEEK");
+				fprintf(output, "VPEEK");
 				break;
 			case 0x99:
-				fprintf(asciifile, "SPACE$");
+				fprintf(output, "SPACE$");
 				break;
 			case 0x9a:
-				fprintf(asciifile, "OCT$");
+				fprintf(output, "OCT$");
 				break;
 			case 0x9b:
-				fprintf(asciifile, "HEX$");
+				fprintf(output, "HEX$");
 				break;
 			case 0x9c:
-				fprintf(asciifile, "LPOS");
+				fprintf(output, "LPOS");
 				break;
 			case 0x9d:
-				fprintf(asciifile, "BIN$");
+				fprintf(output, "BIN$");
 				break;
 			case 0x9e:
-				fprintf(asciifile, "CINT");
+				fprintf(output, "CINT");
 				break;
 			case 0x9f:
-				fprintf(asciifile, "CSNG");
+				fprintf(output, "CSNG");
 				break;
 			case 0xa0:
-				fprintf(asciifile, "CDBL");
+				fprintf(output, "CDBL");
 				break;
 			case 0xa1:
-				fprintf(asciifile, "FIX");
+				fprintf(output, "FIX");
 				break;
 			case 0xa2:
-				fprintf(asciifile, "STICK");
+				fprintf(output, "STICK");
 				break;
 			case 0xa3:
-				fprintf(asciifile, "STRIG");
+				fprintf(output, "STRIG");
 				break;
 			case 0xa4:
-				fprintf(asciifile, "PDL");
+				fprintf(output, "PDL");
 				break;
 			case 0xa5:
-				fprintf(asciifile, "PAD");
+				fprintf(output, "PAD");
 				break;
 			case 0xa6:
-				fprintf(asciifile, "DSKF");
+				fprintf(output, "DSKF");
 				break;
 			case 0xa7:
-				fprintf(asciifile, "FPOS");
+				fprintf(output, "FPOS");
 				break;
 			case 0xa8:
-				fprintf(asciifile, "CVI");
+				fprintf(output, "CVI");
 				break;
 			case 0xa9:
-				fprintf(asciifile, "CVS");
+				fprintf(output, "CVS");
 				break;
 			case 0xaa:
-				fprintf(asciifile, "CVD");
+				fprintf(output, "CVD");
 				break;
 			case 0xab:
-				fprintf(asciifile, "EOF");
+				fprintf(output, "EOF");
 				break;
 			case 0xac:
-				fprintf(asciifile, "LOC");
+				fprintf(output, "LOC");
 				break;
 			case 0xad:
-				fprintf(asciifile, "LOF");
+				fprintf(output, "LOF");
 				break;
 			case 0xae:
-				fprintf(asciifile, "MKI$");
+				fprintf(output, "MKI$");
 				break;
 			case 0xaf:
-				fprintf(asciifile, "MKS$");
+				fprintf(output, "MKS$");
 				break;
 			case 0xb0:
-				fprintf(asciifile, "MKD$");
+				fprintf(output, "MKD$");
 				break;
 			}
 
 			break;
 		default:
-			fprintf(asciifile, "%c", *(buffer + pos));
+			fprintf(output, "%c", *(buffer + pos));
+
 			break;
 		}
 		pos++;
 	}
 	pos++; // end of line
+
+	if (link_ptr != (0x8000 + (uint16_t)pos))
+	{
+		if (options.fix)
+		{
+			buffer[initial_pos_at_line] = (byte)((pos + 0x8000) & 0xff);
+			buffer[initial_pos_at_line + 1] = (byte)(((pos + 0x8000) & 0xff00) >> 8);
+			if (!options.quiet)
+				fprintf(stderr, "Wrong address link fixed at line %d.\n", current_line_number);
+		}
+		else
+		{
+			if (!options.quiet)
+				fprintf(stderr, "Wrong address link detected at line %d. Consider using --fix option.\n", current_line_number);
+		}
+	}
 
 	return pos;
 }
@@ -969,7 +1004,7 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 	char qualifier = (is_double) ? '#' : '!';
 	char *mantissa;
 
-	uint8_t mantissa_length = (is_double) ? 14 : 6;
+	int8_t mantissa_length = (is_double) ? 14 : 6;
 
 	pos++;
 
@@ -979,17 +1014,17 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 
 	case 0:
 		fprintf(output, "0%c", qualifier);
-		pos += 3;
+		pos += is_double ? 7 : 3;
 		break;
 
 	// process the float number
 	default:
+
 		mantissa = malloc((is_double) ? 15 : 7);
 		byte exponent = *(buffer + pos) & 0x7f; // takes absolute value, first bit is sign
 
 		pos++; // pos now points to the beginning of the mantissa
-
-		uint8_t length = read_mantissa(buffer + pos, mantissa, mantissa_length);
+		int8_t length = read_mantissa(buffer + pos, mantissa, mantissa_length);
 
 		// get decimal place
 
@@ -1028,6 +1063,8 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 							fprintf(output, "0");
 						}
 					}
+					if (is_double)
+						fprintf(output, "%c", qualifier);
 				}
 			}
 			else
@@ -1039,6 +1076,7 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 					if (exponent > (0x40 - mantissa_length))
 					{
 						print_mantissa(mantissa, length, exponent - 0x40, output);
+						// fprintf(output, "%c", qualifier);
 					}
 					else
 					// d
@@ -1051,18 +1089,19 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 		}
 		// add zeroes if integer ending with zero (exponent will be greater than mantissa length)
 		// add qualifier if integer
+
 		if (((exponent - 0x40) >= (length)) && (exponent - 0x40 <= mantissa_length))
 		{
 			fprintf(output, "%c", qualifier);
 		}
 
-		pos += 2;
+		pos += is_double ? 6 : 2;
 		break;
 	}
 
 	return pos;
 }
-void print_mantissa(char *mantissa, uint8_t length, uint8_t dot_pos, FILE *output)
+void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output)
 {
 	// dot_pos = dot_pos - 0x40;
 	if (dot_pos < 0)
@@ -1085,13 +1124,13 @@ void print_mantissa(char *mantissa, uint8_t length, uint8_t dot_pos, FILE *outpu
 		}
 	}
 }
-uint8_t read_mantissa(byte *buffer, char *mantissa, uint8_t length)
+int8_t read_mantissa(byte *buffer, char *mantissa, int8_t length)
 {
-	uint8_t mantissa_length = 0;
+	int8_t mantissa_length = 0;
 	// set end of string
 	*(mantissa + length) = 0;
 
-	for (uint8_t i = length - 1; i >= 0; i--)
+	for (int8_t i = length - 1; i >= 0; i--)
 	{
 		byte n = (i % 2) ? (*(buffer + (i / 2)) & 0x0f) : (*(buffer + (i / 2)) & 0xf0) >> 4;
 		*(mantissa + i) = n | 0x30;
@@ -1141,30 +1180,28 @@ int get_colon(byte *buffer, int pos, FILE *output)
 {
 	/*
 	   Possible cases:
-	   0x3a:    plain colon
+	   0x3a:    plain colon (:)
 	   0x3a 0x8f:   REM
+	   0x3a 0xa1:	ELSE
 	   0x3a 0x8f 0xe6: rem mark (')
 	 */
 
-	if (*(buffer + pos + 1) == 0x8f)
+	if (*(buffer + pos + 1) == 0x8f && *(buffer + pos + 2) == 0xe6)
 	{
-		// process REM and '
-		pos++;
-
-		if (*(buffer + pos + 1) == 0xe6)
-		{
-			fprintf(output, "'");
-			pos += 2;
-		}
-		else
-		{
-			fprintf(output, "REM");
-		}
-		pos = get_terminal_string(buffer, pos, output);
+		fprintf(output, "'");
+		pos += 2;
 	}
 	else
 	{
-		fprintf(output, ":");
+		if (*(buffer + pos + 1) == 0xa1)
+		{
+			fprintf(output, "ELSE");
+			pos++;
+		}
+		else
+		{
+			fprintf(output, ":");
+		}
 	}
 
 	return pos;

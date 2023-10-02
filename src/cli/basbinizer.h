@@ -37,7 +37,7 @@ typedef struct _stat st_stat;
 
 typedef uint8_t byte;
 
-unsigned char loader_data[LOADER_SIZE] = {
+byte loader_data[LOADER_SIZE] = {
     0x1F, 0xA6, 0xDE, 0xBA, 0xCC, 0x13, 0x7D, 0x74, 0xD0, 0xD0, 0xD0, 0xD0,
     0xD0, 0xD0, 0xD0, 0xD0, 0xD0, 0xD0, 0x47, 0x41, 0x4D, 0x45, 0x20, 0x20,
     0x1F, 0xA6, 0xDE, 0xBA, 0xCC, 0x13, 0x7D, 0x74, 0x75, 0xF9, 0xF4, 0xF9,
@@ -81,9 +81,10 @@ uint16_t get_word_value(byte *pointer);
 int get_octal(byte *buffer, int pos, FILE *output);
 int get_file_size(FILE *fi);
 int get_float(byte *buffer, int pos, FILE *output, bool is_double);
-uint8_t read_mantissa(byte *buffer, char *mantissa, uint8_t length);
-void print_mantissa(char *mantissa, uint8_t length, uint8_t dot_pos, FILE *output);
-int decodeLine(byte *buffer, int pos, int size, FILE *asciifile);
+int8_t read_mantissa(byte *buffer, char *mantissa, int8_t length);
+void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output);
+int decodeLine(byte *buffer, int pos, off_t size, FILE *asciifile);
+void decodeBAS(byte *buffer, off_t size, FILE *output);
 int get_hex(byte *buffer, int pos, FILE *output);
 int get_line_number(byte *buffer, int pos, FILE *output);
 int get_single(byte *buffer, int pos, FILE *output);
@@ -93,8 +94,8 @@ int get_bin(byte *buffer, int pos, FILE *output);
 int get_terminal_string(byte *buffer, int pos, FILE *output);
 int get_colon(byte *buffer, int pos, FILE *output);
 int get_string(byte *buffer, int pos, FILE *output);
-bool process_bas(byte *buffer, int file_size);
-
+bool process_bas(byte *buffer, off_t file_size);
+bool write_bin(byte *buffer, off_t buf_size, char *binf);
 bool process_opt(int argc, char **argv, options_t *opt);
 
 void usage(void);
