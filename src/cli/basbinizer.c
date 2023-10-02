@@ -16,7 +16,7 @@ void usage(void)
 	fprintf(options.stdoutf, "\t<ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.\n\n");
 	fprintf(options.stdoutf, "Options:\n");
 	fprintf(options.stdoutf, "\t--fix\t\tFixes certain data errors found in the source .BAS file\n");
-	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors\n\n");	
+	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors\n\n");
 
 	fprintf(options.stdoutf, "Example:\n\tbasbinizer STARS.BAS -b STARS.CAS -c STARS\n\n\n");
 }
@@ -1050,34 +1050,43 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 		}
 
 		pos += is_double ? 6 : 2;
+		free(mantissa);
 		break;
 	}
 
-	free(mantissa);
 	return pos;
 }
 void print_mantissa(char *mantissa, int8_t length, int8_t dot_pos, FILE *output)
 {
-	// dot_pos = dot_pos - 0x40;
-	if (dot_pos < 0)
+	if (!mantissa)
 	{
-		fprintf(output, ".");
+		return;
 	}
-	for (int i = (dot_pos < 0) ? dot_pos : 0; i < length; i++)
+	else
 	{
-		if (i < 0)
+
+		// dot_pos = dot_pos - 0x40;
+		if (dot_pos < 0)
 		{
-			fprintf(output, "0");
+			fprintf(output, ".");
 		}
-		else
+		for (int i = (dot_pos < 0) ? dot_pos : 0; i < length; i++)
 		{
-			if (dot_pos == i)
+			if (i < 0)
 			{
-				fprintf(output, ".");
+				fprintf(output, "0");
 			}
-			fprintf(output, "%c", *(mantissa + i));
+			else
+			{
+				if (dot_pos == i)
+				{
+					fprintf(output, ".");
+				}
+				fprintf(output, "%c", *(mantissa + i));
+			}
 		}
 	}
+	return;
 }
 int8_t read_mantissa(byte *buffer, char *mantissa, int8_t length)
 {
@@ -1108,7 +1117,6 @@ int get_string(byte *buffer, int pos, FILE *output)
 		fprintf(output, "%c", *(buffer + pos));
 		pos++;
 	}
-
 
 	return pos - 1;
 }
