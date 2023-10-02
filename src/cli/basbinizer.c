@@ -956,7 +956,7 @@ int get_double(byte *buffer, int pos, FILE *output)
 int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 {
 	char qualifier = (is_double) ? '#' : '!';
-	char *mantissa;
+	char *mantissa = NULL;
 
 	int8_t mantissa_length = (is_double) ? 14 : 6;
 
