@@ -47,7 +47,9 @@ Contact information
 You can contact the author on any of his public profiles:
 
 https://mastropiero.itch.io/
+
 http://blog.msxwiki.org/
+
 https://www.youtube.com/@msxwiki/
 
 
