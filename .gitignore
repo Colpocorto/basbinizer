@@ -49,3 +49,9 @@ Thumbs.db
 *.wmv
 
 src/cli/a.out
+*.obj
+src/cli/NIBBLES.BAS
+*.bak
+src/cli/test.dsk
+src/cli/test2.dsk
+src/test/JUNGLE.ASC
