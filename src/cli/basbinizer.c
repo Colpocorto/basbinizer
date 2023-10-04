@@ -24,21 +24,24 @@ SOFTWARE.
 
 void title(void)
 {
-	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.0 _/_/_/_/_/_/_/_/\n");
+	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.2 _/_/_/_/_/_/_/_/\n");
 	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/ 2023 MSXWiki.org _/_/_/_/_/_/_/_/\n\n\n");
 }
 void usage(void)
 {
 	fprintf(options.stdoutf, "Syntax:\n\n");
-	fprintf(options.stdoutf, "basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [--fix] [--quiet]\n\n");
+	fprintf(options.stdoutf, "basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]\n\n");
 	fprintf(options.stdoutf, "Where\n");
 	fprintf(options.stdoutf, "\t<intputfile> is the path to an MSX-BASIC .BAS file in tokenized format\n");
 	fprintf(options.stdoutf, "\t<outputfile> is the resulting .CAS file.\n");
-	fprintf(options.stdoutf, "\t<CAS FILENAME> if the name of the BLOAD name (max. 6 characters)\n");
+	fprintf(options.stdoutf, "\t<CAS FILENAME> is the name of the BLOAD name (max. 6 characters)\n");
+	fprintf(options.stdoutf, "\t<ROM filename> is the name of the ROM file\n");
 	fprintf(options.stdoutf, "\t<ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.\n\n");
 	fprintf(options.stdoutf, "Options:\n");
 	fprintf(options.stdoutf, "\t--fix\t\tFixes certain data errors found in the source .BAS file\n");
 	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors\n\n");
+
+	fprintf(options.stdoutf, "ROM files must be under 16384 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement)\n\n");
 
 	fprintf(options.stdoutf, "Example:\n\tbasbinizer STARS.BAS -b STARS.CAS -c STARS\n\n\n");
 }
@@ -52,6 +55,7 @@ bool process_params(int argc, char **argv, options_t *opt)
 	opt->infile_s = 0;
 	opt->outfile = NULL;
 	opt->ascfile = NULL;
+	opt->romfile = NULL;
 	memset(opt->casname, ' ', CAS_NAME_LEN);
 	memset(opt->valerror, 0, ERR_MSG_SZ);
 	opt->fix = false;
@@ -130,6 +134,21 @@ bool process_params(int argc, char **argv, options_t *opt)
 						{
 							opt->ascfile = argv[++i];
 						}
+						else
+						{
+							if ((!strcmp(argv[i], "-r")) && (i < (argc - 1)))
+							{
+								if (opt->infile_s <= MAX_ROM_SIZE)
+								{
+									opt->romfile = argv[++i];
+								}
+								else
+								{
+									strcpy(opt->valerror, "BASIC program is too big to be fitted in a ROM.\n");
+									return (false);
+								}
+							}
+						}
 					}
 				}
 			}
@@ -203,14 +222,39 @@ int main(int argc, char **argv)
 		-Convert to ASCII (stdout or file)
 		-Fix links if required
 	*/
-	if (!process_bas(inbuf, options.infile_s))
+	if (!process_bas(inbuf, options.infile_s, BASE_BIN, false))
 	{
 		return (1);
 	}
 
+	/*
+		Write .BIN file if requested
+	*/
 	if (options.outfile)
 	{
 		if (!write_bin(inbuf, options.infile_s, options.outfile))
+		{
+			return (1);
+		}
+	}
+	/*
+		Write .ROM file if requested
+	*/
+	if (options.romfile)
+	{
+		/*
+			Reprocess BAS file for ROM base address
+		*/
+		options.fix = true;
+		if (!process_bas(inbuf, options.infile_s, BASE_ROM, true))
+		{
+			return (1);
+		}
+		/*
+			Set first byte to 0x00 according to the Technical Handbook
+		*/
+		*inbuf = 0x00;
+		if (!write_rom(inbuf, options.infile_s, options.romfile))
 		{
 			return (1);
 		}
@@ -269,23 +313,78 @@ bool write_bin(byte *buffer, off_t buf_size, char *binf)
 
 	return (true);
 }
-bool process_bas(byte *buffer, off_t file_size)
+bool write_rom(byte *inbuf, off_t buf_size, char *romfile)
 {
 	/*
-		Create the ASCII file or assign it to stdout
+		Get memory for the buffer
 	*/
-	FILE *asciifile = stdout;
+	byte *rom_buffer = malloc(ROM_SIZE);
 
-	if (options.ascfile)
+	if (!rom_buffer)
 	{
-		if (!(asciifile = fopen(options.ascfile, "wb")))
-		{
-			fprintf(stderr, "Error creating output ASCII file.\n");
-			return (false);
-		}
+		fprintf(stderr, "Memory error trying to find %lld bytes free while writing ROM file... exiting.\n\n", LOADER_SIZE + buf_size);
+
+		return (false);
 	}
 
-	decodeBAS(buffer, file_size, asciifile);
+	/*
+		copy data and concat .BAS file
+	*/
+	memset(rom_buffer, 0, ROM_SIZE);
+	memcpy(rom_buffer, ROM_header, sizeof(ROM_header));
+	memcpy(rom_buffer + sizeof(ROM_header), inbuf, buf_size);
+
+	/*
+		finally, open output file and write data
+	*/
+	FILE *fo = fopen(romfile, "wb");
+	if (!fo)
+	{
+		fprintf(stderr, "Error opening .ROM file %s.\n", romfile);
+		return (false);
+	}
+
+	if (fwrite(rom_buffer, 1, ROM_SIZE, fo) != (ROM_SIZE))
+	{
+		fprintf(stderr, "Error writing .ROM file %s.\n", romfile);
+	}
+
+	fclose(fo);
+	free(rom_buffer);
+
+	return (true);
+}
+bool process_bas(byte *buffer, off_t file_size, uint16_t base_addr, bool force_quiet)
+{
+	/*
+		Create the ASCII file, assign it to stdout or assign it to null
+	*/
+
+	FILE *asciifile = stdout;
+	if (!force_quiet)
+	{
+		if (options.ascfile)
+		{
+			if (!(asciifile = fopen(options.ascfile, "wb")))
+			{
+				fprintf(stderr, "Error creating output ASCII file.\n");
+				return (false);
+			}
+		}
+	}
+	else
+	{
+		/*
+			set it to null (for example, during the .ROM creation)
+		*/
+#ifdef _WIN32
+		asciifile = fopen("NUL", "wb");
+#else
+		asciifile = fopen("/dev/null", "wb");
+#endif
+	}
+
+	decodeBAS(buffer, file_size, base_addr, asciifile);
 	/*
 		EOF
 	*/
@@ -296,7 +395,7 @@ bool process_bas(byte *buffer, off_t file_size)
 	return (true);
 }
 
-void decodeBAS(byte *buffer, off_t size, FILE *output)
+void decodeBAS(byte *buffer, off_t size, uint16_t base_addr, FILE *output)
 {
 
 	int link_pointer;
@@ -311,13 +410,13 @@ void decodeBAS(byte *buffer, off_t size, FILE *output)
 		/*
 			decode line
 		*/
-		pos = decodeLine(buffer, pos, size, output);
+		pos = decodeLine(buffer, pos, size, base_addr, output);
 
 		fprintf(output, "\r\n");
 	}
 }
 
-int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
+int decodeLine(byte *buffer, int pos, off_t size, uint16_t base_addr, FILE *output)
 {
 	byte token;
 
@@ -400,7 +499,7 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 		/*
 			double float
 		*/
-		case 0x1f: 
+		case 0x1f:
 			pos = get_double(buffer, pos, output);
 			break;
 		/*
@@ -964,14 +1063,14 @@ int decodeLine(byte *buffer, int pos, off_t size, FILE *output)
 	/*
 		end of line
 	*/
-	pos++; 
+	pos++;
 
-	if (link_ptr != (0x8000 + (uint16_t)pos))
+	if (link_ptr != (base_addr + (uint16_t)pos))
 	{
 		if (options.fix)
 		{
-			buffer[initial_pos_at_line] = (byte)((pos + 0x8000) & 0xff);
-			buffer[initial_pos_at_line + 1] = (byte)(((pos + 0x8000) & 0xff00) >> 8);
+			buffer[initial_pos_at_line] = (byte)((pos + base_addr) & 0xff);
+			buffer[initial_pos_at_line + 1] = (byte)(((pos + base_addr) & 0xff00) >> 8);
 			if (!options.quiet)
 				fprintf(stderr, "Wrong address link fixed at line %d.\n", current_line_number);
 		}
@@ -1012,7 +1111,7 @@ int get_quoted_string(byte *buffer, int pos, FILE *output)
 		/*
 			if terminating quote does not exist
 		*/
-		pos--; 
+		pos--;
 	}
 	else
 	{
@@ -1056,12 +1155,12 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 		/*
 			takes absolute value, first bit is sign
 		*/
-		byte exponent = *(buffer + pos) & 0x7f; 
+		byte exponent = *(buffer + pos) & 0x7f;
 
 		/*
 			pos now points to the beginning of the mantissa
 		*/
-		pos++; 
+		pos++;
 		int8_t length = read_mantissa(buffer + pos, mantissa, mantissa_length);
 
 		/*
@@ -1102,7 +1201,7 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 						/*
 							fill with zeroes
 						*/
-						int i=0;
+						int i = 0;
 						for (i; i < (exponent - 0x40) - length; i++)
 						{
 							fprintf(output, "0");
@@ -1123,7 +1222,6 @@ int get_float(byte *buffer, int pos, FILE *output, bool is_double)
 					if (exponent > (0x40 - mantissa_length))
 					{
 						print_mantissa(mantissa, length, exponent - 0x40, output);
-						
 					}
 					else
 					/*
@@ -1196,14 +1294,14 @@ int8_t read_mantissa(byte *buffer, char *mantissa, int8_t length)
 	*(mantissa + length) = 0;
 
 	int8_t i = length - 1;
-	for (i ; i >= 0; i--)
+	for (i; i >= 0; i--)
 	{
 		byte n = (i % 2) ? (*(buffer + (i / 2)) & 0x0f) : (*(buffer + (i / 2)) & 0xf0) >> 4;
 		*(mantissa + i) = n | 0x30;
 		/*
 			found the first non-zero
 		*/
-		if (n && mantissa_length == 0) 
+		if (n && mantissa_length == 0)
 		{
 			mantissa_length = i + 1;
 		}
@@ -1237,7 +1335,7 @@ int get_terminal_string(byte *buffer, int pos, FILE *output)
 	/*
 		the only condition to end string is \0
 	*/
-	while (*(buffer + pos)) 
+	while (*(buffer + pos))
 	{
 		fprintf(output, "%c", *(buffer + pos));
 		pos++;
@@ -1245,7 +1343,7 @@ int get_terminal_string(byte *buffer, int pos, FILE *output)
 	/*
 		next token should point \0 (EOL)
 	*/
-	return pos - 1; 
+	return pos - 1;
 }
 
 int get_colon(byte *buffer, int pos, FILE *output)
