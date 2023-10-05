@@ -1,14 +1,18 @@
-BASBINIZER v1.0
+BASBINIZER v1.5
 ===============
 
-BASBINIZER is a tool for native MSX-BASIC file manipulation. It is multiplatform and several builds have been provided (Windows, Linux, Mac and MSX). Its main features are:
+BASBINIZER is a suite of tools for native MSX-BASIC file manipulation. It is multiplatform and several builds have been provided (Windows, Linux, Mac and MSX).
+Its main features are:
 
 * Read a tokenized .BAS file and print the contents to the standard output (screen) or a text file.
 * Convert the .BAS file to a binary .CAS file that can be loaded from tape with BLOAD"CAS:",R.
 * Fix some inconsistent .BAS files by rebuilding the internal link pointers.
+* Create a .ROM file suitable for physical cartridges.
+* Save a .BAS file directly to tape using your MSX computer (necessary for bigger .BAS programs that are incompatible with the presence of a disk drive).
 
-Using BASBINIZER
-================
+
+Using BASBINIZER on your PC/Mac/Linux computer
+==============================================
 
 Syntax:
 
@@ -41,7 +45,20 @@ Example:
     basbinizer STARS.BAS -b STARS.CAS -c STARS
     
     basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -C NIBBLE --fix
-                                                                              
+
+Using BASBINIZER on your MSX computer
+=====================================
+
+Follow these easy steps:
+
+1) On your MSX, load the program you want to convert with LOAD"CAS: or LOAD"filename.bas  (DON'T run the program or add the ,R modifier).
+2) Load and run BASBINIZER for the MSX computer. Two flavours of the tool are provided. Use basbinizer.cas and type BLOAD"CAS:",R with your favourite CAS loading device or MSX emulator if you are using a diskless MSX computer. If you want to use a disk drive, copy the file BASBIN.BIN to the disk and load it typing BLOAD"BASBIN.BIN",R.
+3) Insert a blank tape (or a new .WAV file if you're using an emulator) and set it for recording. 
+4) When prompted, type the name for the BLOAD loading (the "found" name). It shouldn't be longer than 6 characters.
+5) Press a key and the recording will start. Wait until the program returns to BASIC.
+
+
+
 Building BASBINIZER
 ===================
 
@@ -50,6 +67,8 @@ Basbinizier has been written in plain C language and it is compatible with any C
 Example:
 
     gcc basbinizer.c -o basbinizer
+
+Basbinizer for the MSX is a pure Z80 assembly program provided in two versions. To build them, use SjASM assembler (SjASMPlus or other forks are NOT supported). Visit [XL2S Site](https://www.xl2s.tk) for more information on SjASM.
 
 
 Contact information
