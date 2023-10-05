@@ -46,16 +46,19 @@ Example:
     
     basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -C NIBBLE --fix
 
+    basbinizer NIBBLES.BAS -b NIBBLES.CAS -C NIBBLE -r NIBBLES.ROM --quiet
+    
+
 Using BASBINIZER on your MSX computer
 =====================================
 
 Follow these easy steps:
 
-1) On your MSX, load the program you want to convert with LOAD"CAS: or LOAD"filename.bas  (DON'T run the program or add the ,R modifier).
-2) Load and run BASBINIZER for the MSX computer. Two flavours of the tool are provided. Use basbinizer.cas and type BLOAD"CAS:",R with your favourite CAS loading device or MSX emulator if you are using a diskless MSX computer. If you want to use a disk drive, copy the file BASBIN.BIN to the disk and load it typing BLOAD"BASBIN.BIN",R.
-3) Insert a blank tape (or a new .WAV file if you're using an emulator) and set it for recording. 
-4) When prompted, type the name for the BLOAD loading (the "found" name). It shouldn't be longer than 6 characters.
-5) Press a key and the recording will start. Wait until the program returns to BASIC.
+* On your MSX, load the program you want to convert with LOAD"CAS: or LOAD"filename.bas  (DON'T run the program or add the ,R modifier).
+* Load and run BASBINIZER for the MSX computer. Two flavours of the tool are provided. Use basbinizer.cas and type BLOAD"CAS:",R with your favourite CAS loading device or MSX emulator if you are using a diskless MSX computer. If you want to use a disk drive, copy the file BASBIN.BIN to the disk and load it typing BLOAD"BASBIN.BIN",R.
+* Insert a blank tape (or a new .WAV file if you're using an emulator) and set it for recording. 
+* When prompted, type the name for the BLOAD loading (the "found" name). It shouldn't be longer than 6 characters.
+* Press a key and the recording will start. Wait until the program returns to BASIC.
 
 
 

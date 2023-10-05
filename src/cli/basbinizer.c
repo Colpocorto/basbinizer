@@ -24,7 +24,7 @@ SOFTWARE.
 
 void title(void)
 {
-	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.2 _/_/_/_/_/_/_/_/\n");
+	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.5 _/_/_/_/_/_/_/_/\n");
 	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/ 2023 MSXWiki.org _/_/_/_/_/_/_/_/\n\n\n");
 }
 void usage(void)
