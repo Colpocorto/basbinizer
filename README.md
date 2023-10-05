@@ -12,7 +12,7 @@ Using BASBINIZER
 
 Syntax:
 
-basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [--fix] [--quiet]
+basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
 
 Where
     <intputfile> is the path to an MSX-BASIC .BAS file in tokenized
@@ -21,6 +21,8 @@ Where
 
     <CAS FILENAME> if the name of the BLOAD name (max. 6 characters)
 
+    <ROM filename> is the name of the ROM file
+
     <ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.                                                                       
 
 Options:
@@ -28,6 +30,9 @@ Options:
 --fix       Fixes certain data errors found in the source .BAS file
 
 --quiet     suppress messages on screen (except for critical errors)
+
+
+ROM files must be under 16384 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
 
 Example:
 
