@@ -55,3 +55,7 @@ src/cli/NIBBLES.BAS
 src/cli/test.dsk
 src/cli/test2.dsk
 src/test/JUNGLE.ASC
+*.sym
+*.lst
+*.cas
+src/msx/BASBIN.BIN
