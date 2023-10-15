@@ -24,24 +24,25 @@ SOFTWARE.
 
 void title(void)
 {
-	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v1.5 _/_/_/_/_/_/_/_/\n");
+	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/  Basbinizer v%s _/_/_/_/_/_/_/_/\n",VERSION);
 	fprintf(options.stdoutf, "_/_/_/_/_/_/_/_/ 2023 MSXWiki.org _/_/_/_/_/_/_/_/\n\n\n");
 }
 void usage(void)
 {
 	fprintf(options.stdoutf, "Syntax:\n\n");
-	fprintf(options.stdoutf, "basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]\n\n");
+	fprintf(options.stdoutf, "basbinizer <inputfile> [-i <BIN filename>] [-b <CAS filename> [-c <BLOAD \"NAME\">]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]\n\n");
 	fprintf(options.stdoutf, "Where\n");
 	fprintf(options.stdoutf, "\t<intputfile> is the path to an MSX-BASIC .BAS file in tokenized format\n");
-	fprintf(options.stdoutf, "\t<outputfile> is the resulting .CAS file.\n");
-	fprintf(options.stdoutf, "\t<CAS FILENAME> is the name of the BLOAD name (max. 6 characters)\n");
+	fprintf(options.stdoutf, "\t<BIN filename> is the .BIN file (loadable from disk)\n");
+	fprintf(options.stdoutf, "\t<CAS filename> is the resulting .CAS file.\n");
+	fprintf(options.stdoutf, "\t<BLOAD \"NAME\"> is the name of the \"FOUND\" file (max. 6 characters)\n");
 	fprintf(options.stdoutf, "\t<ROM filename> is the name of the ROM file\n");
 	fprintf(options.stdoutf, "\t<ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.\n\n");
 	fprintf(options.stdoutf, "Options:\n");
 	fprintf(options.stdoutf, "\t--fix\t\tFixes certain data errors found in the source .BAS file\n");
 	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors\n\n");
 
-	fprintf(options.stdoutf, "ROM files must be under 16384 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement)\n\n");
+	fprintf(options.stdoutf, "ROM files must be under %d bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement)\n\n", MAX_ROM_SIZE);
 
 	fprintf(options.stdoutf, "Example:\n\tbasbinizer STARS.BAS -b STARS.CAS -c STARS\n\n\n");
 }
@@ -53,7 +54,7 @@ bool process_params(int argc, char **argv, options_t *opt)
 	*/
 	opt->infile = NULL;
 	opt->infile_s = 0;
-	opt->outfile = NULL;
+	opt->casfile = NULL;
 	opt->ascfile = NULL;
 	opt->romfile = NULL;
 	memset(opt->casname, ' ', CAS_NAME_LEN);
@@ -100,52 +101,59 @@ bool process_params(int argc, char **argv, options_t *opt)
 	int i = 2;
 	while (i < argc)
 	{
-		if ((!strcmp(argv[i], "-b")) && (i < (argc - 1)))
+		if ((!strcmp(argv[i], "-i")) && (i < (argc - 1)))
 		{
-			opt->outfile = argv[++i];
+			opt->binfile = argv[++i];
 		}
 		else
 		{
-			if ((!strcmp(argv[i], "-c")) && (i < (argc - 1)))
+			if ((!strcmp(argv[i], "-b")) && (i < (argc - 1)))
 			{
-				int name_len = strlen(argv[++i]);
-				memcpy(opt->casname, argv[i], name_len > CAS_NAME_LEN ? CAS_NAME_LEN : name_len);
+				opt->casfile = argv[++i];
 			}
 			else
 			{
-				if (!strcmp(argv[i], "--fix"))
+				if ((!strcmp(argv[i], "-c")) && (i < (argc - 1)))
 				{
-					opt->fix = true;
+					int name_len = strlen(argv[++i]);
+					memcpy(opt->casname, argv[i], name_len > CAS_NAME_LEN ? CAS_NAME_LEN : name_len);
 				}
 				else
 				{
-					if (!strcmp(argv[i], "--quiet"))
+					if (!strcmp(argv[i], "--fix"))
 					{
-						opt->quiet = true;
-#ifdef _WIN32
-						opt->stdoutf = fopen("NUL", "wb");
-#else
-						opt->stdoutf = fopen("/dev/null", "wb");
-#endif
+						opt->fix = true;
 					}
 					else
 					{
-						if ((!strcmp(argv[i], "-a")) && (i < (argc - 1)))
+						if (!strcmp(argv[i], "--quiet"))
 						{
-							opt->ascfile = argv[++i];
+							opt->quiet = true;
+#ifdef _WIN32
+							opt->stdoutf = fopen("NUL", "wb");
+#else
+							opt->stdoutf = fopen("/dev/null", "wb");
+#endif
 						}
 						else
 						{
-							if ((!strcmp(argv[i], "-r")) && (i < (argc - 1)))
+							if ((!strcmp(argv[i], "-a")) && (i < (argc - 1)))
 							{
-								if (opt->infile_s <= MAX_ROM_SIZE)
+								opt->ascfile = argv[++i];
+							}
+							else
+							{
+								if ((!strcmp(argv[i], "-r")) && (i < (argc - 1)))
 								{
-									opt->romfile = argv[++i];
-								}
-								else
-								{
-									strcpy(opt->valerror, "BASIC program is too big to be fitted in a ROM.\n");
-									return (false);
+									if (opt->infile_s <= MAX_ROM_SIZE)
+									{
+										opt->romfile = argv[++i];
+									}
+									else
+									{
+										strcpy(opt->valerror, "BASIC program is too big to be fitted in a ROM.\n");
+										return (false);
+									}
 								}
 							}
 						}
@@ -230,9 +238,20 @@ int main(int argc, char **argv)
 	/*
 		Write .BIN file if requested
 	*/
-	if (options.outfile)
+	if (options.binfile)
 	{
-		if (!write_bin(inbuf, options.infile_s, options.outfile))
+		if (!write_bin(inbuf, options.infile_s, options.binfile))
+		{
+			return (1);
+		}
+	}
+
+	/*
+		Write .CAS file if requested
+	*/
+	if (options.casfile)
+	{
+		if (!write_cas(inbuf, options.infile_s, options.casfile))
 		{
 			return (1);
 		}
@@ -268,30 +287,36 @@ bool write_bin(byte *buffer, off_t buf_size, char *binf)
 {
 
 	/*
-		Write file size into binary loader data (loader_data is a global array)
+		Write file size into binary loader data (bin_loader_data is a global array)
+		and  BSAVE data on BIN header
 	*/
-	loader_data[PATCH_POS] = (byte)(buf_size & 0xff);
-	loader_data[PATCH_POS + 1] = (byte)((buf_size & 0xff00) >> 8);
+	bin_loader_data[BIN_PATCH_POS] = (byte)((0x8000 + buf_size) & 0xff);
+	bin_loader_data[BIN_PATCH_POS + 1] = (byte)((0x8000 + buf_size) >> 8);
 
-	memcpy(loader_data + PATCH_NAME_POS, options.casname, CAS_NAME_LEN);
+	BIN_header[3] = (byte)((0x8000 + buf_size + BIN_LOADER_SIZE - 1) & 0xff);
+	BIN_header[4] = (byte)((0x8000 + buf_size + BIN_LOADER_SIZE - 1) >> 8);
+
+	BIN_header[5] = (byte)((0x8000 + buf_size) & 0xff);
+	BIN_header[6] = (byte)((0x8000 + buf_size) >> 8);
 
 	/*
 		Get memory for the buffer
 	*/
-	byte *cas_buffer = malloc(LOADER_SIZE + buf_size);
+	byte *bin_buffer = malloc(sizeof(BIN_header) + buf_size + BIN_LOADER_SIZE);
 
-	if (!cas_buffer)
+	if (!bin_buffer)
 	{
-		fprintf(stderr, "Memory error trying to find %lld bytes free while writing CAS file... exiting.\n\n", LOADER_SIZE + buf_size);
+		fprintf(stderr, "Memory error trying to find %lld bytes free while writing .BIN File... exiting.\n\n", sizeof(BIN_header) + buf_size + BIN_LOADER_SIZE);
 
 		return (false);
 	}
 
 	/*
-		copy data and concat .BAS file
+		Copy data to the .BIN buffer
 	*/
-	memcpy(cas_buffer, loader_data, LOADER_SIZE);
-	memcpy(cas_buffer + LOADER_SIZE, buffer, buf_size);
+	memcpy(bin_buffer, BIN_header, 7);
+	memcpy(bin_buffer + 7, buffer, buf_size);
+	memcpy(bin_buffer + 7 + buf_size, bin_loader_data, BIN_LOADER_SIZE);
 
 	/*
 		finally, open output file and write data
@@ -299,13 +324,62 @@ bool write_bin(byte *buffer, off_t buf_size, char *binf)
 	FILE *fo = fopen(binf, "wb");
 	if (!fo)
 	{
-		fprintf(stderr, "Error opening .CAS file %s.\n", binf);
+		fprintf(stderr, "Error opening .BIN file %s.\n", binf);
 		return (false);
 	}
 
-	if (fwrite(cas_buffer, 1, LOADER_SIZE + buf_size, fo) != (LOADER_SIZE + buf_size))
+	if (fwrite(bin_buffer, 1, sizeof(BIN_header) + buf_size + BIN_LOADER_SIZE, fo) != (sizeof(BIN_header) + buf_size + BIN_LOADER_SIZE))
 	{
-		fprintf(stderr, "Error writing .CAS file %s.\n", binf);
+		fprintf(stderr, "Error writing .BIN file %s.\n", binf);
+	}
+
+	fclose(fo);
+	free(bin_buffer);
+
+	return (true);
+}
+bool write_cas(byte *buffer, off_t buf_size, char *casf)
+{
+
+	/*
+		Write file size into cas binary loader data (cas_loader_data is a global array)
+	*/
+	cas_loader_data[PATCH_POS] = (byte)(buf_size & 0xff);
+	cas_loader_data[PATCH_POS + 1] = (byte)((buf_size & 0xff00) >> 8);
+
+	memcpy(cas_loader_data + PATCH_NAME_POS, options.casname, CAS_NAME_LEN);
+
+	/*
+		Get memory for the buffer
+	*/
+	byte *cas_buffer = malloc(CAS_LOADER_SIZE + buf_size);
+
+	if (!cas_buffer)
+	{
+		fprintf(stderr, "Memory error trying to find %lld bytes free while writing CAS file... exiting.\n\n", CAS_LOADER_SIZE + buf_size);
+
+		return (false);
+	}
+
+	/*
+		copy data and concat .BAS file
+	*/
+	memcpy(cas_buffer, cas_loader_data, CAS_LOADER_SIZE);
+	memcpy(cas_buffer + CAS_LOADER_SIZE, buffer, buf_size);
+
+	/*
+		finally, open output file and write data
+	*/
+	FILE *fo = fopen(casf, "wb");
+	if (!fo)
+	{
+		fprintf(stderr, "Error opening .CAS file %s.\n", casf);
+		return (false);
+	}
+
+	if (fwrite(cas_buffer, 1, CAS_LOADER_SIZE + buf_size, fo) != (CAS_LOADER_SIZE + buf_size))
+	{
+		fprintf(stderr, "Error writing .CAS file %s.\n", casf);
 	}
 
 	fclose(fo);
@@ -322,7 +396,7 @@ bool write_rom(byte *inbuf, off_t buf_size, char *romfile)
 
 	if (!rom_buffer)
 	{
-		fprintf(stderr, "Memory error trying to find %lld bytes free while writing ROM file... exiting.\n\n", LOADER_SIZE + buf_size);
+		fprintf(stderr, "Memory error trying to find %d bytes free while writing ROM file... exiting.\n\n", ROM_SIZE);
 
 		return (false);
 	}

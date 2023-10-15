@@ -1,4 +1,4 @@
-BASBINIZER v1.5
+BASBINIZER v1.8
 ===============
 
 BASBINIZER is a suite of tools for native MSX-BASIC file manipulation. It is multiplatform and several builds have been provided (Windows, Linux, Mac and MSX).
@@ -16,14 +16,16 @@ Using BASBINIZER on your PC/Mac/Linux computer
 
 Syntax:
 
-basbinizer <inputfile> [-b <outputfile> [-c <CAS FILENAME>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
+basbinizer <inputfile> [-i <BIN filename>] [-b <CAS filename> [-c <BLOAD "NAME">]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
 
 Where
     <intputfile> is the path to an MSX-BASIC .BAS file in tokenized
 
-    <outputfile> is the resulting .CAS file.
+    <BIN filename> is the .BIN file (loadable from disk)
 
-    <CAS FILENAME> if the name of the BLOAD name (max. 6 characters)
+    <CAS filename> is the resulting .CAS file.
+
+    <BLOAD "NAME"> is the name of the "FOUND" file (max. 6 characters)
 
     <ROM filename> is the name of the ROM file
 
@@ -36,7 +38,7 @@ Options:
 --quiet     suppress messages on screen (except for critical errors)
 
 
-ROM files must be under 16384 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
+ROM files must be under 16368 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
 
 Example:
 
@@ -47,6 +49,8 @@ Example:
     basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -C NIBBLE --fix
 
     basbinizer NIBBLES.BAS -b NIBBLES.CAS -C NIBBLE -r NIBBLES.ROM --quiet
+
+    basbinizer NIBBLES.BAS -i NIBBLES.BIN
     
 
 Using BASBINIZER on your MSX computer
