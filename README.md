@@ -1,5 +1,5 @@
-BASBINIZER v1.9
-===============
+BASBINIZER v1.9.1
+=================
 
 BASBINIZER is a suite of tools for native MSX-BASIC file manipulation. It is multiplatform and several builds have been provided (Windows, Linux, Mac and MSX).
 Its main features are:
