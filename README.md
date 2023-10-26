@@ -16,10 +16,10 @@ Using BASBINIZER on your PC/Mac/Linux computer
 
 Syntax:
 
-basbinizer <inputfile> [-i <BIN filename>] [-b <CAS filename> [-c <BLOAD "NAME">]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
+basbinizer <inputfile> [-i <BIN filename>] [-b <CAS filename> [-c <BLOAD "NAME">] [-s <SCR loadfile>] [-vm <screen mode>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
 
 Where
-    <intputfile> is the path to an MSX-BASIC .BAS file in tokenized
+    <inputfile> is the path to an MSX-BASIC .BAS file in tokenized format
 
     <BIN filename> is the .BIN file (loadable from disk)
 
@@ -29,7 +29,12 @@ Where
 
     <ROM filename> is the name of the ROM file
 
-    <ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.                                                                       
+    <ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.
+
+    <SCR filename> is a loading screen (in BSAVE format) or a VRAM dump that would be loaded prior to the main BASIC program.
+
+    <screen mode> is the SCREEN mode in MSX-BASIC to be set before loading the screen. Default: 2
+
 
 Options:
 
@@ -38,7 +43,7 @@ Options:
 --quiet     suppress messages on screen (except for critical errors)
 
 
-ROM files must be under 16368 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
+The maximum program size for ROM file conversion is 16368 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
 
 Example:
 
@@ -46,12 +51,14 @@ Example:
 
     basbinizer STARS.BAS -b STARS.CAS -c STARS
     
-    basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -C NIBBLE --fix
+    basbinizer NIBBLES.BAS -a NIBBLES.ASC -b NIBBLES.CAS -c NIBBLE --fix
 
-    basbinizer NIBBLES.BAS -b NIBBLES.CAS -C NIBBLE -r NIBBLES.ROM --quiet
+    basbinizer NIBBLES.BAS -b NIBBLES.CAS -c NIBBLE -r NIBBLES.ROM --quiet
 
     basbinizer NIBBLES.BAS -i NIBBLES.BIN
-    
+
+    basbinizer NIBBLES.BAS -b NIBBLES.CAS -c NIBBLE -s GFX.SC2
+   
 
 Using BASBINIZER on your MSX computer
 =====================================
@@ -64,6 +71,11 @@ Follow these easy steps:
 * When prompted, type the name for the BLOAD loading (the "found" name). It shouldn't be longer than 6 characters.
 * Press a key and the recording will start. Wait until the program returns to BASIC.
 
+
+Using BASBINIZER with ASCII BASIC files
+=======================================
+
+At this moment, Basbinizer does not support .ASC files as the input (only as the target file). However, as it was [suggested](https://github.com/Colpocorto/basbinizer/issues/1#issuecomment-1779204571) by user [Francesco Maida](https://github.com/fmaida), it can be used in cojunction with [basic-dignified](https://github.com/farique1/basic-dignified) in the same tool chain.
 
 
 Building BASBINIZER

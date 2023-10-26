@@ -23,12 +23,9 @@ SOFTWARE.
 	include common.asm
 	
 
-BASPRG	equ #8000
-buffer	equ	#8000
-
+BASPRG	equ	#8000
+SCRBUF	equ	#8000
 JMPLDR	equ	#F000
-
-LAUNCH	equ	#4000
 
 CRTSLT	equ	#f975
 PG0SLT	equ CRTSLT+1
@@ -47,10 +44,12 @@ LDREXEC		equ LDRSTART
 	ds	10,#D0	;binary file signature
 	db	"GAME  "	;cas file name
 	db	CASHDR
+	org	#0000	;used to calculate block size
 	dw	LOADER.LDRSTART
 	dw	LOADER.LDREND - 1
 	dw	LDREXEC
 
+LDRBLCK:
 	module	LOADER
 	org	LDRSTART
 LDRSTART:
@@ -59,7 +58,31 @@ LDRSTART:
 	ld	(H.KEYI),a
 	ld	(H.TIMI),a
 
+	ld	a,1
+	ld	hl,FORCLR
+	ld	(hl),a
+	ld	a,1
+	inc	hl
+	ld	(hl),a
+	inc	hl
+	ld	(hl),a
+	call	CHGCLR
 
+	;------ this routine to be patched to allow SCREEN loading
+	jr	PRG_LOAD
+	ld	hl,SCRBUF
+	ld	bc,#4000	;to be patched with actual SCR size minus bsave header
+	call	LOAD
+	ld	a,2		;screen mode, 2 by default, patch the actual one
+	call	CHGMOD
+	call	DISSCR
+	ld	hl,SCRBUF
+	ld	de,#0000	;start of VRAM
+	ld	bc,#4000	;to be patched with actual SCR size minus bsave header
+	call	LDIRVM
+	call	ENASCR
+
+PRG_LOAD:
 	ld	hl,BASPRG
 	ld	bc,DAT_80E-DAT_80
 	call	LOAD
@@ -72,33 +95,10 @@ LDRSTART:
 	dec	hl
 	ld	(BOTTOM),hl
 
-	ld	a,15
-	ld	hl,FORCLR
-	ld	(hl),a
-	ld	a,1
-	inc	hl
-	ld	(hl),a
-	inc	hl
-	ld	(hl),a
-	call	CHGCLR
-
-	call	INITXT
 	xor	a
 	ld	(BASPRG),a
 
 	jp	BASRUN
-
-/*
-    ld (VARTAB),hl	;#f6c2	#8003 -	#8713	= #710 (BAS size - 3)
-    ld  hl,BASPRG
-    ld  (TXTTAB),hl	;#f676	#8001	#8001
-	dec	hl
-	ld	(BOTTOM),hl	;#fc48	#8000	#8000
-	#8000 <- #00
-*/
-
-
-	jp	LAUNCH
 
 LOAD:
 	di
@@ -149,12 +149,13 @@ changeBorderPatch01:
 	ld	a,87h	;register 7 + 80h
 changeBorderPatch02:	
 	out	(#99),a
-	ret
-		
+	ret             
 LDREND:
 
 	endmodule
 
+	org	LOADER.LDREND-LOADER.LDRSTART + LDRBLCK
+	ds	8- $ % 8,0	
 	;-----------------TAPE BLOCKS-----------------------
 	db	CASHDR
 DAT_80:	
