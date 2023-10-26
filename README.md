@@ -9,6 +9,7 @@ Its main features are:
 * Fix some inconsistent .BAS files by rebuilding the internal link pointers.
 * Create a .ROM file suitable for physical cartridges.
 * Save a .BAS file directly to tape using your MSX computer (necessary for bigger .BAS programs that are incompatible with the presence of a disk drive).
+* Add a loading screen using any SCREEN mode
 
 
 Using BASBINIZER on your PC/Mac/Linux computer
