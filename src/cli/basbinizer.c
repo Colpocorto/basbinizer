@@ -397,7 +397,7 @@ bool write_cas(byte *buffer, off_t buf_size, byte *scr_buf, off_t scr_buf_size, 
 		cas_loader_data[SCR_PATCH_POS2] = (byte)((scr_buf_size - 7) & 0xff);
 		cas_loader_data[SCR_PATCH_POS1 + 1] = (byte)(((scr_buf_size - 7) & 0xff00) >> 8);
 		cas_loader_data[SCR_PATCH_POS2 + 1] = (byte)(((scr_buf_size - 7) & 0xff00) >> 8);
-		cas_loader_data[SCR_PATCH_POS3] = 0; // NOP the JR to make the screen loading routine work
+		cas_loader_data[SCR_PATCH_POS3] = 0;
 		cas_loader_data[VM_PATCH_POS] = options.scr_mode;
 	}
 
