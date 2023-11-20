@@ -217,7 +217,13 @@ byte *get_input_file(char *infile, off_t infile_s)
 			return NULL;
 		}
 		fprintf(options.stdoutf, "OK\n");
-
+		/*
+			Check if the file is actually a tokenized BASIC file
+		*/
+		if ((buffer[0] != 0xff) && !options.quiet)
+		{
+			fprintf(stderr, "WARNING: input file does not seem to be a tokenized MSX-BASIC program.\nThis might cause unexpected problems (ASCII files are not supported yet).\n");
+		}
 		return (buffer);
 	}
 	else
@@ -468,19 +474,21 @@ bool write_rom(byte *inbuf, off_t buf_size, char *romfile)
 	/*
 		Get memory for the buffer
 	*/
-	byte *rom_buffer = malloc(ROM_SIZE);
+
+	int rom_size = buf_size > (MAX_ROM_SIZE - ROM_SIZE / 2) ? ROM_SIZE : ROM_SIZE / 2;
+
+	byte *rom_buffer = malloc(rom_size);
 
 	if (!rom_buffer)
 	{
-		fprintf(stderr, "Memory error trying to find %d bytes free while writing ROM file... exiting.\n\n", ROM_SIZE);
-
+		fprintf(stderr, "Memory error trying to find %d bytes free while writing ROM file... exiting.\n\n", rom_size);
 		return (false);
 	}
 
 	/*
 		copy data and concat .BAS file
 	*/
-	memset(rom_buffer, 0, ROM_SIZE);
+	memset(rom_buffer, 0xff, rom_size);
 	memcpy(rom_buffer, ROM_header, sizeof(ROM_header));
 	memcpy(rom_buffer + sizeof(ROM_header), inbuf, buf_size);
 
@@ -494,7 +502,7 @@ bool write_rom(byte *inbuf, off_t buf_size, char *romfile)
 		return (false);
 	}
 
-	if (fwrite(rom_buffer, 1, ROM_SIZE, fo) != (ROM_SIZE))
+	if (fwrite(rom_buffer, 1, rom_size, fo) != (rom_size))
 	{
 		fprintf(stderr, "Error writing .ROM file %s.\n", romfile);
 	}
