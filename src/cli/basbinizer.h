@@ -36,7 +36,7 @@ typedef long long int off_t;
 typedef struct _stat st_stat;
 #endif
 
-#define VERSION "1.9.1"
+#define VERSION "1.9.2"
 #define BIN_LOADER_SIZE 50
 #define CAS_LOADER_SIZE 208
 #define BIN_PATCH_POS   10

@@ -217,7 +217,13 @@ byte *get_input_file(char *infile, off_t infile_s)
 			return NULL;
 		}
 		fprintf(options.stdoutf, "OK\n");
-
+		/*
+			Check if the file is actually a tokenized BASIC file
+		*/
+		if ((buffer[0] != 0xff) && !options.quiet)
+		{
+			fprintf(stderr, "WARNING: input file does not seem to be a tokenized MSX-BASIC program.\nThis might cause unexpected problems (ASCII files are not supported yet).\n");
+		}
 		return (buffer);
 	}
 	else
@@ -469,7 +475,7 @@ bool write_rom(byte *inbuf, off_t buf_size, char *romfile)
 		Get memory for the buffer
 	*/
 
-	int rom_size = buf_size>(MAX_ROM_SIZE-ROM_SIZE/2) ? ROM_SIZE : ROM_SIZE / 2;
+	int rom_size = buf_size > (MAX_ROM_SIZE - ROM_SIZE / 2) ? ROM_SIZE : ROM_SIZE / 2;
 
 	byte *rom_buffer = malloc(rom_size);
 
