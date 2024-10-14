@@ -1230,12 +1230,12 @@ int decodeLine(byte *buffer, int pos, off_t size, uint16_t base_addr, FILE *outp
 			buffer[initial_pos_at_line] = (byte)((pos + base_addr) & 0xff);
 			buffer[initial_pos_at_line + 1] = (byte)(((pos + base_addr) & 0xff00) >> 8);
 			if (!options.quiet)
-				fprintf(stderr, "Wrong address link fixed at line %d.\n", current_line_number);
+				fprintf(stderr, " Wrong address link fixed at line %d.\n", current_line_number);
 		}
 		else
 		{
 			if (!options.quiet)
-				fprintf(stderr, "Wrong address link detected at line %d. Consider using --fix option.\n", current_line_number);
+				fprintf(stderr, " Wrong address link detected at line %d. Consider using --fix option.\n", current_line_number);
 		}
 	}
 
@@ -1509,27 +1509,34 @@ int get_colon(byte *buffer, int pos, FILE *output)
 	/*
 	   Possible cases:
 	   0x3a:    plain colon (:)
-	   0x3a 0x8f:   REM
 	   0x3a 0xa1:	ELSE
+	   0x3a 0x8f:   REM
 	   0x3a 0x8f 0xe6: rem mark (')
 	 */
 
-	if (*(buffer + pos + 1) == 0x8f && *(buffer + pos + 2) == 0xe6)
+	
+	switch (*(buffer + pos + 1))
 	{
-		fprintf(output, "'");
+	case 0x8f:
 		pos += 2;
-	}
-	else
-	{
-		if (*(buffer + pos + 1) == 0xa1)
-		{
-			fprintf(output, "ELSE");
+		if (*(buffer + pos) == 0xe6) {
+			fprintf(output, "'");
 			pos++;
 		}
-		else
+		else 
 		{
-			fprintf(output, ":");
+			fprintf(output, "REM");
 		}
+		pos = get_terminal_string(buffer, pos, output);
+
+		break;
+	case 0xa1:
+		fprintf(output, "ELSE");
+		pos++;
+		break;
+	default:
+		fprintf(output,":");
+		break;
 	}
 
 	return pos;
