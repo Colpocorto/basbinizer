@@ -43,6 +43,8 @@ Options:
 
 --quiet     suppress messages on screen (except for critical errors)
 
+--addr      prints memory address for each line (assumed base address #8000)
+
 
 The maximum program size for ROM file conversion is 16368 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
 

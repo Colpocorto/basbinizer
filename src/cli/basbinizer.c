@@ -42,7 +42,8 @@ void usage(void)
 	fprintf(options.stdoutf, "\t<screen mode> is the SCREEN mode in MSX-BASIC to be set before loading the screen. Default: 2\n");
 	fprintf(options.stdoutf, "\nOptions:\n");
 	fprintf(options.stdoutf, "\t--fix\t\tFixes certain data errors found in the source .BAS file\n");
-	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors)\n\n");
+	fprintf(options.stdoutf, "\t--quiet\t\t suppress messages on screen (except for critical errors)\n");
+	fprintf(options.stdoutf, "\t--addr\t\t prints memory address for each line (assumed base address #8000)\n\n");
 
 	fprintf(options.stdoutf, "ROM files must be under %d bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement)\n\n", MAX_ROM_SIZE);
 
@@ -162,22 +163,29 @@ bool process_params(int argc, char **argv, options_t *opt)
 								}
 								else
 								{
-									if ((!strcmp(argv[i], "-a")) && (i < (argc - 1)))
+									if (!strcmp(argv[i], "--addr"))
 									{
-										opt->ascfile = argv[++i];
+										opt->addr = true;
 									}
 									else
 									{
-										if ((!strcmp(argv[i], "-r")) && (i < (argc - 1)))
+										if ((!strcmp(argv[i], "-a")) && (i < (argc - 1)))
 										{
-											if (opt->infile_s <= MAX_ROM_SIZE)
+											opt->ascfile = argv[++i];
+										}
+										else
+										{
+											if ((!strcmp(argv[i], "-r")) && (i < (argc - 1)))
 											{
-												opt->romfile = argv[++i];
-											}
-											else
-											{
-												strcpy(opt->valerror, "BASIC program is too big to be fitted in a ROM.\n");
-												return (false);
+												if (opt->infile_s <= MAX_ROM_SIZE)
+												{
+													opt->romfile = argv[++i];
+												}
+												else
+												{
+													strcpy(opt->valerror, "BASIC program is too big to be fitted in a ROM.\n");
+													return (false);
+												}
 											}
 										}
 									}
@@ -563,6 +571,10 @@ void decodeBAS(byte *buffer, off_t size, uint16_t base_addr, FILE *output)
 	*/
 	int pos = 1;
 
+	if (options.addr) {
+		fprintf(output, "[#%4x]: ", base_addr+1);
+	}
+
 	while ((link_pointer = get_word_value(buffer + pos)) != 0)
 	{
 		/*
@@ -571,6 +583,10 @@ void decodeBAS(byte *buffer, off_t size, uint16_t base_addr, FILE *output)
 		pos = decodeLine(buffer, pos, size, base_addr, output);
 
 		fprintf(output, "\r\n");
+		if (options.addr) {
+			fprintf(output, "[#%4x]: ",link_pointer);
+		}
+
 	}
 }
 
