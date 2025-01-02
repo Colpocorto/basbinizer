@@ -36,7 +36,7 @@ typedef long long int off_t;
 typedef struct _stat st_stat;
 #endif
 
-#define VERSION "1.9.3"
+#define VERSION "1.9.5"
 #define BIN_LOADER_SIZE 50
 #define CAS_LOADER_SIZE 208
 #define BIN_PATCH_POS   10
@@ -101,6 +101,7 @@ typedef struct options
     bool fix;
     bool verbose;
     bool quiet;
+    bool addr;
     char *infile;
     off_t infile_s;
     char *scrfile;

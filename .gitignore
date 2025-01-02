@@ -61,3 +61,7 @@ src/test/JUNGLE.ASC
 src/msx/BASBIN.BIN
 src/cli/basbinizer-linux-x64-bin
 *.elf
+*.ppj
+*.ppx
+src/cli/basbinizer.tag
+test/
