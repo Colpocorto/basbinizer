@@ -17,33 +17,34 @@ Using BASBINIZER on your PC/Mac/Linux computer
 
 Syntax:
 
-basbinizer <inputfile> [-i <BIN filename>] [-b <CAS filename> [-c <BLOAD "NAME">] [-s <SCR loadfile>] [-vm <screen mode>]] [-a <ASC filename>] [-r <ROM filename>] [--fix] [--quiet]
+basbinizer `<inputfile>` [-i `<BIN filename>`] [-b `<CAS filename>` [-c `<BLOAD "NAME">`] [-s `<SCR loadfile>`] [-vm `<screen mode>`]] [-a `<ASC filename>`] [-r `<ROM filename>`] [--fix] [--quiet] [--addr]
 
 Where
-    <inputfile> is the path to an MSX-BASIC .BAS file in tokenized format
+  
+   `<inputfile>` is the path to an MSX-BASIC .BAS file in tokenized format
 
-    <BIN filename> is the .BIN file (loadable from disk)
+   `<BIN filename>` is the .BIN file (loadable from disk)
 
-    <CAS filename> is the resulting .CAS file.
-
-    <BLOAD "NAME"> is the name of the "FOUND" file (max. 6 characters)
-
-    <ROM filename> is the name of the ROM file
-
-    <ASC filename> to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.
-
-    <SCR filename> is a loading screen (in BSAVE format) or a VRAM dump that would be loaded prior to the main BASIC program.
-
-    <screen mode> is the SCREEN mode in MSX-BASIC to be set before loading the screen. Default: 2
+   `<CAS filename>` is the resulting .CAS file.
+   
+   `<BLOAD "NAME">` is the name of the "FOUND" file (max. 6 characters)
+   
+   `<ROM filename>` is the name of the ROM file
+   
+   `<ASC filename>` to generate an ASCII file from the tokenized BASIC. If not specified, the ASCII text is written to the standard output.
+   
+   `<SCR filename>` is a loading screen (in BSAVE format) or a VRAM dump that would be loaded prior to the main BASIC program.
+   
+   `<screen mode>` is the SCREEN mode in MSX-BASIC to be set before loading the screen. Default: 2
 
 
 Options:
 
---fix       Fixes certain data errors found in the source .BAS file
+`--fix`       Fixes certain data errors found in the source .BAS file
 
---quiet     suppress messages on screen (except for critical errors)
+`--quiet`     suppress messages on screen (except for critical errors)
 
---addr      prints memory address for each line (assumed base address #8000)
+`--addr`      prints memory address for each line (assumed base address #8000)
 
 
 The maximum program size for ROM file conversion is 16368 bytes and the variable area must start beyond address #C000. The program will fail if it sets the variable area to any address under #C000 (e.g. by using a CLEAR statement).
